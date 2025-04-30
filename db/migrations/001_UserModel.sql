@@ -1,0 +1,12 @@
+CREATE TABLE IF NOT EXISTS users (
+    id VARCHAR(50) PRIMARY KEY NOT NULL,
+    username VARCHAR(255) NOT NULL UNIQUE,
+    email VARCHAR(255) NOT NULL UNIQUE,
+    password VARCHAR(255) NOT NULL,
+    role VARCHAR(255),
+    photo_profile VARCHAR(255),
+    is_active BOOLEAN, 
+    created_at TIMESTAMPTZ DEFAULT NOW(),
+    updated_at TIMESTAMPTZ DEFAULT NOW(),
+    deleted_at TIMESTAMPTZ DEFAULT NULL
+);
