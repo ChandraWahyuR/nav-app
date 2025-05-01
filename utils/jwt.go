@@ -25,11 +25,11 @@ func NewJWT(s string) JWTInterface {
 
 func (j *JWT) GenerateToken(data *model.User) (string, error) {
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, jwt.MapClaims{
-		"id":       data.ID,
-		"email":    data.Email,
-		"username": data.Username,
-		"role":     data.Role,
-		"exp":      time.Now().Add(time.Hour * 24).Unix(),
+		"id":    data.ID,
+		"email": data.Email,
+		"role":  data.Role,
+		"exp":   time.Now().Add(time.Hour * 24).Unix(),
+		"iat":   time.Now().Unix(), // tgl dibuat jwt ini
 	})
 
 	tokenString, err := token.SignedString([]byte(j.signKey))
@@ -58,9 +58,8 @@ func (j *JWT) VerifyToken(tokenString string) (*model.User, error) {
 	}
 
 	return &model.User{
-		ID:       claims["id"].(string),
-		Username: claims["username"].(string),
-		Email:    claims["email"].(string),
-		Role:     claims["role"].(string),
+		ID:    claims["id"].(string),
+		Email: claims["email"].(string),
+		Role:  claims["role"].(string),
 	}, nil
 }

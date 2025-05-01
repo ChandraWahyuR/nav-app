@@ -26,10 +26,21 @@ func NewUserRepository(db *sql.DB, log *logrus.Logger) *RegistrasiRepo {
 
 // Tambahan context
 func (r *RegistrasiRepo) Register(ctx context.Context, postData *entity.User) error {
+	ctx, cancel := context.WithTimeout(ctx, 2*time.Second)
+	defer cancel()
 	query := `INSERT INTO "users"(id, username, email, password, photo_profile, role, is_active)  VALUES($1, $2, $3, $4, $5, $6, $7)`
-	_, err := r.db.ExecContext(ctx, query, postData.ID, postData.Email, postData.Username, postData.Password, postData.PhotoProfile, postData.Role, postData.IsActive)
+	_, err := r.db.ExecContext(ctx, query,
+		postData.ID,
+		postData.Username,
+		postData.Email,
+		postData.Password,
+		postData.PhotoProfile,
+		postData.Role,
+		postData.IsActive,
+	)
+
 	if err != nil {
-		return fmt.Errorf(`gagal memasukkan data ke database : %s`, err)
+		return utils.ParsePQError(err)
 	}
 
 	return nil
@@ -38,27 +49,36 @@ func (r *RegistrasiRepo) Register(ctx context.Context, postData *entity.User) er
 func (r *RegistrasiRepo) Login(ctx context.Context, postData *entity.User) (*entity.User, error) {
 	var userData entity.User
 	query := `SELECT id, email, password FROM "users" WHERE email = $1`
-	err := r.db.QueryRowContext(ctx, query, postData.Email).Scan(&userData.Email, &userData.Password)
+	err := r.db.QueryRowContext(ctx, query, postData.Email).Scan(
+		&userData.ID, &userData.Email, &userData.Password)
+
+	fmt.Println("Email dicari:", postData.Email)
 	if err != nil {
-		fmt.Errorf(`Gagal menginputkan data :%s`, err)
-		if err == sql.ErrNoRows {
-			fmt.Errorf(`Gagal menginputkan data :%s`, err)
-			return nil, errors.New("email tidak ada")
+		if errors.Is(err, sql.ErrNoRows) {
+			return nil, errors.New("email tidak ditemukan")
 		}
-		return nil, err
+		return nil, fmt.Errorf("gagal mengambil data login: %w", err)
 	}
 
-	if !utils.ValidasiEmail(postData.Email) {
-		return nil, errors.New("error email tidak ada")
+	if !utils.VerifyHashedPassword(postData.Password, userData.Password) {
+		return nil, errors.New("password salah")
 	}
-
 	return &userData, nil
 }
 
 func (r *RegistrasiRepo) GetUserID(ctx context.Context, id string) (entity.User, error) {
 	var data entity.User
-	query := `SELECT * FROM "users" WHERE id = $1`
-	err := r.db.QueryRowContext(ctx, query, id).Scan(&data)
+	query := `SELECT id, email, username, password, role, photo_profile, is_active FROM "users" WHERE id = $1`
+	err := r.db.QueryRowContext(ctx, query, id).Scan(
+		&data.ID,
+		&data.Email,
+		&data.Username,
+		&data.Password,
+		&data.Role,
+		&data.PhotoProfile,
+		&data.IsActive,
+	)
+
 	if err != nil {
 		return entity.User{}, err
 	}
@@ -118,29 +138,36 @@ func (r *RegistrasiRepo) ResetPassword(ctx context.Context, data *entity.User) e
 	query := `UPDATE users SET password = $1 WHERE email = $2 AND deleted_at IS NULL`
 	_, err := r.db.ExecContext(ctx, query, data.Password, data.Email)
 	if err != nil {
-		return err
+		return utils.ParsePQError(err)
 	}
 
 	return nil
 }
 
-// Validasi
-func (r *RegistrasiRepo) IsEmailAvailable(ctx context.Context, email string) bool {
-	var data string // cuman cek aja pakai string langsung, kalau mau ambil data ambil dari entity
-	query := `SELECT username FROM "users" WHERE email = $1`
-	err := r.db.QueryRowContext(ctx, query, email).Scan(&data)
+func (r *RegistrasiRepo) EditDataUser(ctx context.Context, data *entity.User, id string) error {
+	query := `UPDATE users SET username = $1, password = $2, photo_profile = $3 WHERE id = $4 AND deleted_at IS NULL`
+	result, err := r.db.ExecContext(ctx, query, data.Username, data.Password, data.PhotoProfile, id)
 	if err != nil {
-		return false
+		return utils.ParsePQError(err)
 	}
-	return true
+
+	rows, err := result.RowsAffected()
+	if err != nil {
+		return err
+	}
+	if rows == 0 {
+		return errors.New("tidak ada data yang diperbarui")
+	}
+	return nil
 }
 
-func (r *RegistrasiRepo) IsUsernameAvailable(ctx context.Context, username string) bool {
-	var data string
-	query := `SELECT username FROM "users" WHERE username = $1`
-	err := r.db.QueryRowContext(ctx, query, username).Scan(&data)
+// Validasi
+func (r *RegistrasiRepo) IsDataAvailable(ctx context.Context, email, username string) bool {
+	var data string // cuman cek aja pakai string langsung, kalau mau ambil data ambil dari entity
+	query := `SELECT email, username FROM users WHERE email = $1 OR username = $2`
+	err := r.db.QueryRowContext(ctx, query, email, username).Scan(&data)
 	if err != nil {
-		return false
+		return true
 	}
-	return true
+	return false
 }

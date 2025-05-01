@@ -24,12 +24,12 @@ func NewAuth(jwt jwt.JWTInterface) gin.HandlerFunc {
 		}
 
 		token := tokenParts[1]
-		_, err := jwt.VerifyToken(token)
+		userData, err := jwt.VerifyToken(token)
 		if err != nil {
 			ctx.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"errors": err.Error()})
 			return
 		}
-
+		ctx.Set("auth", userData)
 		ctx.Next()
 	}
 }

@@ -8,4 +8,8 @@ const (
 	BadInput       = "Format data not valid"
 )
 
-var ErrGetData = errors.New("gagal saat mengambil data")
+var (
+	ErrGetData       = errors.New("gagal saat mengambil data")
+	ErrEmailTaken    = errors.New("email sudah digunakan")
+	ErrUsernameTaken = errors.New("username sudah digunakan")
+)

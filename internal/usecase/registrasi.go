@@ -29,9 +29,9 @@ type RepositoryUserInterface interface {
 	OtpVerify(ctx context.Context, data *entity.Otp) (*entity.Otp, error)
 	ResetPassword(ctx context.Context, data *entity.User) error
 
+	EditDataUser(ctx context.Context, data *entity.User, id string) error
 	//
-	IsEmailAvailable(ctx context.Context, email string) bool
-	IsUsernameAvailable(ctx context.Context, username string) bool
+	IsDataAvailable(ctx context.Context, email, username string) bool
 }
 
 type UsecaseUser struct {
@@ -68,13 +68,8 @@ func (s *UsecaseUser) Register(ctx context.Context, userData *model.User) error 
 	}
 
 	// Cek ketersediaan email
-	if s.userRepo.IsEmailAvailable(ctx, userData.Email) {
-		return errors.New("email sudah digunakan")
-	}
-
-	// Cek ketersediaan username
-	if s.userRepo.IsUsernameAvailable(ctx, userData.Username) {
-		return errors.New("username sudah digunakan")
+	if !s.userRepo.IsDataAvailable(ctx, userData.Email, userData.Username) {
+		return errors.New("email atau username sudah digunakan")
 	}
 
 	// Cek validasi password
@@ -107,16 +102,16 @@ func (s *UsecaseUser) Register(ctx context.Context, userData *model.User) error 
 	return nil
 }
 
-func (s *UsecaseUser) Login(ctx context.Context, postData *model.User) (*model.User, error) {
+func (s *UsecaseUser) Login(ctx context.Context, postData *model.Login) (*model.Login, error) {
 	switch {
 	case postData.Email == "":
-		return &model.User{}, errors.New("email tidak boleh kosong")
+		return &model.Login{}, errors.New("email tidak boleh kosong")
 	case postData.Password == "":
-		return &model.User{}, errors.New("password tidak boleh kosong")
+		return &model.Login{}, errors.New("password tidak boleh kosong")
 	}
-	// Cek format password
+	// Cek format Email
 	if !utils.ValidasiEmail(postData.Email) {
-		return &model.User{}, errors.New("format email tidak benar")
+		return &model.Login{}, errors.New("format email tidak benar")
 	}
 
 	postData.Email = strings.ToLower(postData.Email)
@@ -127,25 +122,20 @@ func (s *UsecaseUser) Login(ctx context.Context, postData *model.User) (*model.U
 
 	res, err := s.userRepo.Login(ctx, &userEntity)
 	if err != nil {
-		return &model.User{}, err
-	}
-
-	if postData.ID == "" {
-		return &model.User{}, fmt.Errorf("id user tidak ditemukan")
+		return &model.Login{}, err
 	}
 
 	tokenData := model.User{
-		ID:       res.ID,
-		Username: res.Username,
-		Email:    res.Email,
-		Role:     RoleUser,
+		ID:    res.ID,
+		Email: res.Email,
+		Role:  RoleUser,
 	}
 	token, err := s.jwt.GenerateToken(&tokenData)
 	if err != nil {
-		return &model.User{}, err
+		return &model.Login{}, err
 	}
 
-	UserLoginData := &model.User{}
+	UserLoginData := &model.Login{}
 	UserLoginData.Token = token
 
 	return UserLoginData, nil
@@ -169,4 +159,56 @@ func (s *UsecaseUser) Profile(ctx context.Context, id string) (model.User, error
 	}
 
 	return entityData, nil
+}
+
+func (s *UsecaseUser) EditProfile(ctx context.Context, data *model.EditProfile, id string) error {
+	var dataUser entity.User
+
+	oldData, err := s.userRepo.GetUserID(ctx, id)
+	if err != nil {
+		return errors.New("akun tidak ditemukan")
+	}
+
+	if id == "" {
+		return errors.New("akun tidak ditemukan")
+	}
+	// Validasi username
+	if data.Username != "" {
+		if !s.userRepo.IsDataAvailable(ctx, "", data.Username) {
+			return errors.New("username sudah digunakan")
+		}
+		dataUser.Username = data.Username
+	} else {
+		dataUser.Username = oldData.Username
+	}
+
+	// Password Update
+	if data.Password != "" {
+		// Cek format password
+		pass, err := utils.ValidatePassword(data.Password)
+		if err != nil {
+			return fmt.Errorf("password tidak valid: %w", err)
+		}
+		// Hash password
+		hashedPassword, err := utils.HashPassword(pass)
+		if err != nil {
+			return err
+		}
+		dataUser.Password = hashedPassword
+	} else {
+		dataUser.Password = oldData.Password
+	}
+
+	if data.PhotoProfile != "" {
+		dataUser.PhotoProfile = data.PhotoProfile
+	} else {
+		dataUser.PhotoProfile = oldData.PhotoProfile
+	}
+
+	err = s.userRepo.EditDataUser(ctx, &dataUser, id)
+	if err != nil {
+		return err
+	}
+
+	return nil
 }

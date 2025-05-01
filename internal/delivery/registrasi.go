@@ -14,14 +14,16 @@ import (
 
 type RegisterUsecaseInterface interface {
 	Register(ctx context.Context, postData *model.User) error
-	Login(ctx context.Context, postData *model.User) (*model.User, error)
+	Login(ctx context.Context, postData *model.Login) (*model.Login, error)
 	Profile(ctx context.Context, id string) (model.User, error)
+	EditProfile(ctx context.Context, data *model.EditProfile, id string) error
 }
 
 type RegisterHandlerInterface interface {
 	Register(c *gin.Context)
 	Login(c *gin.Context)
 	Profile(c *gin.Context)
+	EditProfile(c *gin.Context)
 }
 
 type UserHandler struct {
@@ -47,7 +49,7 @@ func (h *UserHandler) Register(c *gin.Context) {
 	ctx := c.Request.Context()
 	var data model.Register
 	if err := c.Bind(&data); err != nil {
-		c.JSON(http.StatusUnprocessableEntity, gin.H{"error": err.Error()})
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
 
@@ -67,7 +69,7 @@ func (h *UserHandler) Register(c *gin.Context) {
 }
 
 func (h *UserHandler) Login(c *gin.Context) {
-	var data model.User
+	var data model.Login
 	if err := c.Bind(&data); err != nil {
 		c.JSON(http.StatusUnprocessableEntity, gin.H{"error": err.Error()})
 		return
@@ -76,7 +78,7 @@ func (h *UserHandler) Login(c *gin.Context) {
 	ctx := c.Request.Context()
 	result, err := h.uc.Login(ctx, &data)
 	if err != nil {
-		c.JSON(http.StatusUnprocessableEntity, gin.H{"error": err.Error()})
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
 
@@ -109,4 +111,38 @@ func (h *UserHandler) Profile(c *gin.Context) {
 		"message": "Profile success",
 		"data":    resData,
 	})
+}
+
+func (h *UserHandler) EditProfile(c *gin.Context) {
+	defer func() {
+		if r := recover(); r != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": fmt.Sprintf("Internal server error: %v", r)})
+		}
+	}()
+	dataToken, ok := middleware.GetUser(c)
+	if !ok {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "unauthorized"})
+		return
+	}
+
+	var data model.EditProfile
+	if err := c.Bind(&data); err != nil {
+		c.JSON(http.StatusUnprocessableEntity, gin.H{"error": err.Error()})
+		return
+	}
+	dataUser := &model.EditProfile{
+		ID:           data.ID,
+		Username:     data.Username,
+		PhotoProfile: data.Username,
+		Password:     data.Password,
+	}
+	ctx := c.Request.Context()
+	err := h.uc.EditProfile(ctx, dataUser, dataToken.ID)
+	if err != nil {
+		fmt.Println("err :", err)
+		c.JSON(http.StatusBadRequest, gin.H{"message": "error proses data"})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"status": "data berhasil di edit"})
 }

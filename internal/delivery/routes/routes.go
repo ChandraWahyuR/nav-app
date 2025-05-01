@@ -24,4 +24,5 @@ func (c *RouteConfig) SetupUserRoute() {
 
 	c.App.Use(middleware.NewAuth(c.JWT))
 	c.App.GET("/profile", c.UserController.Profile)
+	c.App.PUT("/profile", c.UserController.EditProfile)
 }

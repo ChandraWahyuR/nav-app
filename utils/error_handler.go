@@ -5,6 +5,7 @@ import (
 	"net/http"
 
 	"github.com/gin-gonic/gin"
+	"github.com/lib/pq"
 )
 
 func ConverResponse(err error) int {
@@ -16,6 +17,7 @@ func ConverResponse(err error) int {
 		return http.StatusInternalServerError
 	}
 }
+
 func HandleEchoError(err error) (int, string) {
 	if _, ok := err.(*gin.Error); ok {
 		return http.StatusBadRequest, BadInput
@@ -33,4 +35,18 @@ func InternalServerError(c *gin.Context) {
 
 func JWTErrorHandler(c *gin.Context, err error) {
 	c.JSON(http.StatusUnauthorized, gin.H{"message": InternalServer})
+}
+
+func ParsePQError(err error) error {
+	if pqErr, ok := err.(*pq.Error); ok {
+		if pqErr.Code == "23505" { // unique_violation
+			switch pqErr.Constraint {
+			case "users_email_key":
+				return ErrEmailTaken
+			case "users_username_key":
+				return ErrUsernameTaken
+			}
+		}
+	}
+	return err
 }
