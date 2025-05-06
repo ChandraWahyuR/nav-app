@@ -1,16 +1,20 @@
 package usecase
 
 import (
+	"bytes"
 	"context"
 	"errors"
 	"fmt"
+	"html/template"
 	"os"
 	"proyek1/config"
 	"proyek1/internal/entity"
 	"proyek1/internal/model"
 	"proyek1/utils"
 	jwt "proyek1/utils"
+	"proyek1/utils/mailer"
 	"strings"
+	"sync"
 
 	"github.com/google/uuid"
 	"github.com/sirupsen/logrus"
@@ -39,14 +43,16 @@ type UsecaseUser struct {
 	userRepo RepositoryUserInterface
 	log      *logrus.Logger
 	cfg      *config.Config
+	m        mailer.MailInterface
 }
 
-func NewUserUsecase(jwt jwt.JWTInterface, user RepositoryUserInterface, log *logrus.Logger, cfg *config.Config) *UsecaseUser {
+func NewUserUsecase(jwt jwt.JWTInterface, user RepositoryUserInterface, log *logrus.Logger, cfg *config.Config, m mailer.MailInterface) *UsecaseUser {
 	return &UsecaseUser{
 		jwt:      jwt,
 		userRepo: user,
 		log:      log,
 		cfg:      cfg,
+		m:        m,
 	}
 }
 
@@ -98,6 +104,16 @@ func (s *UsecaseUser) Register(ctx context.Context, userData *model.User) error 
 	if err != nil {
 		return err
 	}
+
+	var wg sync.WaitGroup
+	wg.Add(1)
+	go func() {
+		fmt.Println(resData)
+		err := s.sendVerificationEmail(resData, "adsfd")
+		if err != nil {
+			fmt.Println("Gagal mengirim email verifikasi:", err)
+		}
+	}()
 
 	return nil
 }
@@ -211,4 +227,28 @@ func (s *UsecaseUser) EditProfile(ctx context.Context, data *model.EditProfile, 
 	}
 
 	return nil
+}
+
+func (s *UsecaseUser) sendVerificationEmail(user entity.User, link string) error {
+	data := map[string]interface{}{
+		"Name": user.Username,
+		"Link": link,
+	}
+
+	t, err := template.ParseFiles("./static/body.email.html")
+	if err != nil {
+		panic(err)
+	}
+
+	var body bytes.Buffer
+	if err := t.Execute(&body, data); err != nil {
+		return fmt.Errorf("failed to execute email template: %w", err)
+	}
+
+	return s.m.SendMail(
+		user.Email,
+		"Verifikasi Akun Anda",
+		body.String(),
+		data,
+	)
 }

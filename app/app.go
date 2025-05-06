@@ -7,6 +7,8 @@ import (
 	"proyek1/internal/delivery/routes"
 	"proyek1/internal/repository"
 	"proyek1/internal/usecase"
+	"proyek1/utils/gmaps"
+	"proyek1/utils/mailer"
 
 	"proyek1/utils"
 
@@ -15,11 +17,13 @@ import (
 )
 
 type BootstrapConfig struct {
-	DB  *sql.DB
-	App *gin.Engine
-	Log *logrus.Logger
-	JWT utils.JWTInterface
-	Cfg *config.Config
+	DB   *sql.DB
+	App  *gin.Engine
+	Log  *logrus.Logger
+	JWT  utils.JWTInterface
+	Cfg  *config.Config
+	M    mailer.MailInterface
+	Maps gmaps.GmapsInterface
 }
 
 func App(config *BootstrapConfig) {
@@ -27,14 +31,16 @@ func App(config *BootstrapConfig) {
 	userRepository := repository.NewUserRepository(config.DB, config.Log)
 
 	// UseCase
-	userUsecase := usecase.NewUserUsecase(config.JWT, userRepository, config.Log, config.Cfg)
+	userUsecase := usecase.NewUserUsecase(config.JWT, userRepository, config.Log, config.Cfg, config.M)
 
 	// Delivery
 	userHandler := delivery.NewUserHandler(config.JWT, userUsecase, config.Log)
+	mapsHandler := delivery.NewMapsHandler(config.JWT, config.Maps)
 
 	routeConfig := routes.RouteConfig{
 		App:            config.App,
 		UserController: userHandler,
+		MapsController: &mapsHandler,
 		JWT:            config.JWT,
 	}
 

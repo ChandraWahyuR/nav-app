@@ -2,6 +2,7 @@ package utils
 
 import (
 	"errors"
+	"fmt"
 	"regexp"
 
 	"golang.org/x/crypto/bcrypt"
@@ -49,4 +50,13 @@ func ValidatePassword(password string) (string, error) {
 		return "", errors.New("password harus mengandung simbol spesial (@$!%*?&#)")
 	}
 	return password, nil
+}
+
+func FormatJam(jam string) string {
+	if len(jam) < 4 {
+		return fmt.Sprint("kurang")
+	}
+
+	angka1 := jam[:2]
+	return fmt.Sprintf(`%s:%s`, angka1, jam[2:])
 }

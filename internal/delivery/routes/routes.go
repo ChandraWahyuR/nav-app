@@ -11,11 +11,13 @@ import (
 type RouteConfig struct {
 	App            *gin.Engine
 	UserController *delivery.UserHandler
+	MapsController *delivery.MapsHandler
 	JWT            utils.JWTInterface
 }
 
 func (c *RouteConfig) Setup() {
 	c.SetupUserRoute()
+	c.SetupMapsRoute()
 }
 
 func (c *RouteConfig) SetupUserRoute() {
@@ -25,4 +27,13 @@ func (c *RouteConfig) SetupUserRoute() {
 	c.App.Use(middleware.NewAuth(c.JWT))
 	c.App.GET("/profile", c.UserController.Profile)
 	c.App.PUT("/profile", c.UserController.EditProfile)
+}
+
+func (c *RouteConfig) SetupMapsRoute() {
+
+	c.App.Use(middleware.NewAuth(c.JWT))
+	c.App.GET("/maps", c.MapsController.GmapsSearchbyObject)
+	c.App.GET("/maps-list", c.MapsController.GmapsSearchbyList)
+	c.App.GET("/place/:id", c.MapsController.GmapsSearchbyPlaceID)
+	c.App.GET("/photo", c.MapsController.ProxyPhotoHandler)
 }

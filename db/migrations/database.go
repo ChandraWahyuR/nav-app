@@ -12,6 +12,10 @@ func CreateTables(db *sql.DB) error {
 	files := []string{
 		"./db/migrations/001_UserModel.sql",
 		"./db/migrations/002_OtpModel.sql",
+		"./db/migrations/003_TempatPariwisata.sql",
+		"./db/migrations/003.1_ReviewTempat.sql",
+		"./db/migrations/003.2_FotoTempat.sql",
+		"./db/migrations/003.3_OpeningHours.sql",
 	}
 
 	for _, v := range files {
