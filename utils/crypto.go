@@ -60,3 +60,7 @@ func FormatJam(jam string) string {
 	angka1 := jam[:2]
 	return fmt.Sprintf(`%s:%s`, angka1, jam[2:])
 }
+
+func TotalPageForPagination(totalDataDB, limit int) int {
+	return (totalDataDB + limit - 1) / limit
+}

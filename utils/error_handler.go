@@ -47,6 +47,7 @@ func ParsePQError(err error) error {
 				return ErrUsernameTaken
 			}
 		}
+		// return fmt.Errorf("terjadi kesalahan saat menyimpan data")
 	}
 	return err
 }

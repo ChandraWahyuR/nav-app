@@ -13,7 +13,7 @@ func NewAuth(jwt jwt.JWTInterface) gin.HandlerFunc {
 	return func(ctx *gin.Context) {
 		authHeader := ctx.GetHeader("Authorization")
 		if authHeader == "" {
-			ctx.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"error": "Unauthorize"}) // gin.H sama aja kaya map[string]string{"": ""}
+			ctx.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"error": "Unauthorize auth"}) // gin.H sama aja kaya map[string]string{"": ""}
 			return
 		}
 

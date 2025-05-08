@@ -29,13 +29,14 @@ type BootstrapConfig struct {
 func App(config *BootstrapConfig) {
 	// Repository
 	userRepository := repository.NewUserRepository(config.DB, config.Log)
+	mapsRepository := repository.NewMapsRepository(config.DB, config.Log)
 
 	// UseCase
 	userUsecase := usecase.NewUserUsecase(config.JWT, userRepository, config.Log, config.Cfg, config.M)
-
+	mapsUsecase := usecase.NewMapsUsercase(mapsRepository, config.Log, config.Maps)
 	// Delivery
 	userHandler := delivery.NewUserHandler(config.JWT, userUsecase, config.Log)
-	mapsHandler := delivery.NewMapsHandler(config.JWT, config.Maps)
+	mapsHandler := delivery.NewMapsHandler(config.JWT, config.Maps, mapsUsecase)
 
 	routeConfig := routes.RouteConfig{
 		App:            config.App,

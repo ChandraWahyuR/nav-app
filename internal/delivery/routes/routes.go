@@ -24,16 +24,20 @@ func (c *RouteConfig) SetupUserRoute() {
 	c.App.POST("/register", c.UserController.Register)
 	c.App.POST("/login", c.UserController.Login)
 
-	c.App.Use(middleware.NewAuth(c.JWT))
-	c.App.GET("/profile", c.UserController.Profile)
-	c.App.PUT("/profile", c.UserController.EditProfile)
+	private := c.App.Group("/")
+	private.Use(middleware.NewAuth(c.JWT))
+	private.GET("/profile", c.UserController.Profile)
+	private.PUT("/profile", c.UserController.EditProfile)
 }
 
 func (c *RouteConfig) SetupMapsRoute() {
+	c.App.GET("/photo", c.MapsController.ProxyPhotoHandler) // app use global, nanti kena semua
 
-	c.App.Use(middleware.NewAuth(c.JWT))
-	c.App.GET("/maps", c.MapsController.GmapsSearchbyObject)
-	c.App.GET("/maps-list", c.MapsController.GmapsSearchbyList)
-	c.App.GET("/place/:id", c.MapsController.GmapsSearchbyPlaceID)
-	c.App.GET("/photo", c.MapsController.ProxyPhotoHandler)
+	private := c.App.Group("/")
+	private.Use(middleware.NewAuth(c.JWT))
+	private.GET("/maps", c.MapsController.GmapsSearchbyObject)
+	private.GET("/maps-list", c.MapsController.GmapsSearchbyList)
+	private.GET("/place", c.MapsController.GetTempatPagination)
+	private.GET("/place/:id", c.MapsController.GmapsSearchbyPlaceID)
+	private.POST("/place/:id", c.MapsController.InsertData)
 }

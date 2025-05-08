@@ -6,7 +6,6 @@ import (
 	"errors"
 	"fmt"
 	"html/template"
-	"os"
 	"proyek1/config"
 	"proyek1/internal/entity"
 	"proyek1/internal/model"
@@ -21,8 +20,7 @@ import (
 )
 
 var (
-	DefaultPhoto = os.Getenv("DEFAULT_PP") // sementara
-	RoleUser     = "user"
+	RoleUser = "user"
 )
 
 type RepositoryUserInterface interface {
