@@ -107,6 +107,38 @@ func (s *UsecaseMaps) GetTempatPagination(ctx context.Context, limit, page int) 
 	return res, totalPage, nil
 }
 
+func (s *UsecaseMaps) RouteDestination(ctx context.Context, req model.RequestRouteMaps, placeID string) (*model.ResponseRouteMaps, error) {
+	searchData, err := s.gm.GmapsSearchByPlaceID(placeID)
+	if err != nil {
+		return nil, err
+	}
+
+	floatLat, _ := strconv.ParseFloat(searchData.Geometry.Lat, 64)
+	floatLng, _ := strconv.ParseFloat(searchData.Geometry.Lng, 64)
+	reqData := model.RequestRouteMaps{
+		Origin: model.Waypoint{
+			Location: model.LocationReq{
+				LatLng: model.LatLng{
+					Latitude:  req.Origin.Location.LatLng.Latitude,
+					Longitude: req.Origin.Location.LatLng.Longitude,
+				},
+			},
+		}, Destination: model.Waypoint{
+			Location: model.LocationReq{
+				LatLng: model.LatLng{
+					Latitude:  floatLat,
+					Longitude: floatLng,
+				},
+			},
+		},
+		TravelMode: req.TravelMode,
+	}
+	fmt.Println("Hasil pencarian placeID:", searchData.Geometry.Lat, searchData.Geometry.Lng)
+
+	return s.gm.RouteToDestination(reqData)
+}
+
+// Convert
 func ConverMapsToModelPlace(req model.MapsGetByPlaceId) *entity.Tempat {
 	lat, _ := strconv.ParseFloat(req.Geometry.Lat, 64)
 	lng, _ := strconv.ParseFloat(req.Geometry.Lng, 64)

@@ -171,3 +171,13 @@ func (r *RegistrasiRepo) IsDataAvailable(ctx context.Context, email, username st
 	}
 	return false
 }
+
+func (r *RegistrasiRepo) RoleChecker(ctx context.Context, id string) string {
+	var data string
+	query := `SELECT role FROM users WHERE id = $1`
+	err := r.db.QueryRowContext(ctx, query, id).Scan(&data)
+	if err != nil {
+		return ""
+	}
+	return data
+}

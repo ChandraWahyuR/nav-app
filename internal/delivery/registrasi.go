@@ -17,6 +17,8 @@ type RegisterUsecaseInterface interface {
 	Login(ctx context.Context, postData *model.Login) (*model.Login, error)
 	Profile(ctx context.Context, id string) (model.User, error)
 	EditProfile(ctx context.Context, data *model.EditProfile, id string) error
+
+	RegisterForAdmin(ctx context.Context, req *model.User) error
 }
 
 type RegisterHandlerInterface interface {
@@ -24,6 +26,7 @@ type RegisterHandlerInterface interface {
 	Login(c *gin.Context)
 	Profile(c *gin.Context)
 	EditProfile(c *gin.Context)
+	RegisterForAdmin(c *gin.Context)
 }
 
 type UserHandler struct {
@@ -145,4 +148,28 @@ func (h *UserHandler) EditProfile(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, gin.H{"status": "data berhasil di edit"})
+}
+
+func (h *UserHandler) RegisterForAdmin(c *gin.Context) {
+	ctx := c.Request.Context()
+	var data model.Register
+	if err := c.Bind(&data); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	modelData := model.User{
+		Username:        data.Username,
+		Email:           data.Email,
+		Password:        data.Password,
+		ConfirmPassword: data.ConfirmPassword,
+	}
+
+	err := h.uc.RegisterForAdmin(ctx, &modelData)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusCreated, gin.H{"message": "Registrasi admin berhasil"})
 }

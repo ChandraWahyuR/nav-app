@@ -20,7 +20,8 @@ import (
 )
 
 var (
-	RoleUser = "user"
+	RoleUser  = "user"
+	RoleAdmin = "admin"
 )
 
 type RepositoryUserInterface interface {
@@ -34,6 +35,7 @@ type RepositoryUserInterface interface {
 	EditDataUser(ctx context.Context, data *entity.User, id string) error
 	//
 	IsDataAvailable(ctx context.Context, email, username string) bool
+	RoleChecker(ctx context.Context, id string) string
 }
 
 type UsecaseUser struct {
@@ -139,10 +141,16 @@ func (s *UsecaseUser) Login(ctx context.Context, postData *model.Login) (*model.
 		return &model.Login{}, err
 	}
 
+	userRole := s.userRepo.RoleChecker(ctx, res.ID)
+	fmt.Println("role:", userRole)
+	if userRole == "" {
+		return nil, errors.New("Error role tidak dapat ditentukan")
+	}
+
 	tokenData := model.User{
 		ID:    res.ID,
 		Email: res.Email,
-		Role:  RoleUser,
+		Role:  userRole,
 	}
 	token, err := s.jwt.GenerateToken(&tokenData)
 	if err != nil {
@@ -249,4 +257,56 @@ func (s *UsecaseUser) sendVerificationEmail(user entity.User, link string) error
 		body.String(),
 		data,
 	)
+}
+
+func (s *UsecaseUser) RegisterForAdmin(ctx context.Context, req *model.User) error {
+	switch {
+	case req.Username == "":
+		return errors.New("username tidak boleh kosong")
+	case req.Email == "":
+		return errors.New("email tidak boleh kosong")
+	case req.Password == "":
+		return errors.New("password tidak boleh kosong")
+	case req.Password != req.ConfirmPassword:
+		return errors.New("konfirmasi password tidak sama dengan password")
+	}
+
+	// Cek format password
+	if !utils.ValidasiEmail(req.Email) {
+		return errors.New("format email tidak benar")
+	}
+
+	// Cek ketersediaan email
+	if !s.userRepo.IsDataAvailable(ctx, req.Email, req.Username) {
+		return errors.New("email atau username sudah digunakan")
+	}
+
+	// Cek validasi password
+	pass, err := utils.ValidatePassword(req.Password)
+	if err != nil {
+		return fmt.Errorf("password tidak valid: %w", err)
+	}
+
+	// Proses hashing password
+	hashedPassword, err := utils.HashPassword(pass)
+	if err != nil {
+		return err
+	}
+
+	resData := entity.User{
+		ID:           uuid.New().String(),
+		Username:     req.Username,
+		Email:        req.Email,
+		Password:     hashedPassword,
+		PhotoProfile: s.cfg.GeneralPhoto.DefaultPhoto,
+		Role:         RoleAdmin,
+		IsActive:     true, // sementara
+	}
+
+	err = s.userRepo.Register(ctx, &resData)
+	if err != nil {
+		return err
+	}
+
+	return nil
 }

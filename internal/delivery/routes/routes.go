@@ -23,6 +23,7 @@ func (c *RouteConfig) Setup() {
 func (c *RouteConfig) SetupUserRoute() {
 	c.App.POST("/register", c.UserController.Register)
 	c.App.POST("/login", c.UserController.Login)
+	c.App.POST("/reg-admin", c.UserController.RegisterForAdmin)
 
 	private := c.App.Group("/")
 	private.Use(middleware.NewAuth(c.JWT))
@@ -40,4 +41,6 @@ func (c *RouteConfig) SetupMapsRoute() {
 	private.GET("/place", c.MapsController.GetTempatPagination)
 	private.GET("/place/:id", c.MapsController.GmapsSearchbyPlaceID)
 	private.POST("/place/:id", c.MapsController.InsertData)
+
+	private.POST("/route-maps/:id", c.MapsController.RouteDestination)
 }

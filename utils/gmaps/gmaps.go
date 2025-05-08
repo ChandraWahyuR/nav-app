@@ -1,9 +1,12 @@
 package gmaps
 
 import (
+	"bytes"
 	"encoding/json"
 	"fmt"
+	"io"
 	"io/ioutil"
+	"log"
 	"net/http"
 	"net/url"
 	"proyek1/config"
@@ -17,6 +20,7 @@ type GmapsInterface interface {
 	GmapsSearchList(inputTempat string) ([]model.Maps, error)
 	GmapsSearchByPlaceID(placeID string) (model.MapsGetByPlaceId, error)
 	PhotoReference(photoURl string) (string, error)
+	RouteToDestination(req model.RequestRouteMaps) (*model.ResponseRouteMaps, error)
 }
 
 type gmapsStruct struct {
@@ -195,4 +199,46 @@ func (c *gmapsStruct) PhotoReference(photoURl string) (string, error) {
 	)
 
 	return photoURL, nil
+}
+
+func (c *gmapsStruct) RouteToDestination(req model.RequestRouteMaps) (*model.ResponseRouteMaps, error) {
+	var client = &http.Client{}
+
+	requestURL := fmt.Sprintf("%s?key=%s", constant.GmapsGetRouteByPlaceID, c.c.GMAPS_API_KEY)
+	fmt.Println(requestURL)
+	jsonData, err := json.Marshal(req)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	request, err := http.NewRequest("POST", requestURL, bytes.NewReader(jsonData))
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	// fieldMask := "routes.duration,routes.distanceMeters,routes.polyline.encodedPolyline"
+	request.Header.Set("Content-Type", "application/json")
+	request.Header.Set("X-Goog-FieldMask", "*")
+
+	response, err := client.Do(request)
+	if err != nil {
+		return nil, err
+	}
+
+	fmt.Println("ini response.body:", response.Body)
+	bodyBytes, err := io.ReadAll(response.Body)
+	if err != nil {
+		log.Fatal(err)
+	}
+	bodyString := string(bodyBytes)
+	fmt.Println("Full Response Body:\n", bodyString) // Cetak seluruh body
+
+	res := &model.ResponseRouteMaps{}
+	err = json.Unmarshal(bodyBytes, &res)
+	if err != nil {
+		return nil, err
+	}
+	fmt.Println("ini res:", res)
+
+	return res, nil
 }

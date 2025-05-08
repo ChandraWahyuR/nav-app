@@ -80,3 +80,33 @@ type Review struct {
 	Text                           string  `json:"text"`
 	Rating                         float64 `json:"rating"`
 }
+
+//
+type RequestRouteMaps struct {
+	Origin      Waypoint `json:"origin"`
+	Destination Waypoint `json:"destination"`
+	TravelMode  string   `json:"travelMode"`
+}
+
+type Waypoint struct {
+	Location LocationReq `json:"location"`
+}
+
+type LocationReq struct {
+	LatLng LatLng `json:"latLng"`
+}
+
+type LatLng struct {
+	Latitude  float64 `json:"latitude"`
+	Longitude float64 `json:"longitude"`
+}
+
+type ResponseRouteMaps struct {
+	Routes []struct {
+		Distance int    `json:"distanceMeters"`
+		Duration string `json:"duration"`
+		Polyline struct {
+			EncodePolyline string `json:"encodedPolyline"`
+		} `json:"polyline"`
+	} `json:"routes"`
+}

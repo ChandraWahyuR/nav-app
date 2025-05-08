@@ -22,11 +22,13 @@ type MapsHandlerInterface interface {
 	InsertData(c *gin.Context)
 	GetTempatPagination(c *gin.Context)
 	ProxyPhotoHandler(c *gin.Context)
+	RouteDestination(c *gin.Context)
 }
 
 type MapsUsecaseInterface interface {
 	InsertTempat(ctx context.Context, placeId string) error
 	GetTempatPagination(ctx context.Context, limit, page int) ([]model.GetAllTempat, int, error)
+	RouteDestination(ctx context.Context, req model.RequestRouteMaps, placeID string) (*model.ResponseRouteMaps, error)
 }
 type MapsHandler struct {
 	jwt   jwt.JWTInterface
@@ -196,4 +198,52 @@ func (h *MapsHandler) ProxyPhotoHandler(c *gin.Context) {
 	c.Status(http.StatusOK)
 
 	io.Copy(c.Writer, resp.Body)
+}
+
+func (h *MapsHandler) RouteDestination(c *gin.Context) {
+	_, ok := middleware.GetUser(c)
+	if !ok {
+		c.JSON(http.StatusUnauthorized, gin.H{"message": "unauthorized"})
+		return
+	}
+
+	placeId := c.Param("id")
+	if placeId == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"message": "placeId tidak boleh kosong"})
+		return
+	}
+
+	ctx := c.Request.Context()
+
+	var req model.RequestRouteMaps
+	if err := c.Bind(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	modelReq := model.RequestRouteMaps{
+		Origin: model.Waypoint{
+			Location: model.LocationReq{
+				LatLng: model.LatLng{
+					Latitude:  req.Origin.Location.LatLng.Latitude,
+					Longitude: req.Origin.Location.LatLng.Longitude,
+				},
+			},
+		}, Destination: model.Waypoint{
+			Location: model.LocationReq{
+				LatLng: model.LatLng{
+					Latitude:  req.Destination.Location.LatLng.Latitude,
+					Longitude: req.Destination.Location.LatLng.Longitude,
+				},
+			},
+		},
+		TravelMode: req.TravelMode,
+	}
+	data, err := h.us.RouteDestination(ctx, modelReq, placeId)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"message": "berhasil", "data": data})
 }
