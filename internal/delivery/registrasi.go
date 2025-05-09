@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"proyek1/internal/delivery/middleware"
 	"proyek1/internal/model"
+	crypto "proyek1/utils"
 	jwt "proyek1/utils"
 
 	"github.com/gin-gonic/gin"
@@ -96,6 +97,11 @@ func (h *UserHandler) Profile(c *gin.Context) {
 		return
 	}
 
+	if crypto.IsUser(dataToken.Role) {
+		c.JSON(http.StatusUnauthorized, gin.H{"message": "role apa njir"})
+		return
+	}
+
 	ctx := c.Request.Context()
 	userData, err := h.uc.Profile(ctx, dataToken.ID)
 	if err != nil {
@@ -125,6 +131,11 @@ func (h *UserHandler) EditProfile(c *gin.Context) {
 	dataToken, ok := middleware.GetUser(c)
 	if !ok {
 		c.JSON(http.StatusUnauthorized, gin.H{"error": "unauthorized"})
+		return
+	}
+
+	if crypto.IsUser(dataToken.Role) {
+		c.JSON(http.StatusUnauthorized, gin.H{"message": "role apa njir"})
 		return
 	}
 

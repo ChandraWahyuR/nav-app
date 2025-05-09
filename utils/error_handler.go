@@ -45,6 +45,8 @@ func ParsePQError(err error) error {
 				return ErrEmailTaken
 			case "users_username_key":
 				return ErrUsernameTaken
+			case "tempat_pariwisata_place_id_key":
+				return ErrPlaceIDUniqueTaken
 			}
 		}
 		// return fmt.Errorf("terjadi kesalahan saat menyimpan data")

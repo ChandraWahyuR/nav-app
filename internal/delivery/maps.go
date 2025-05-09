@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"proyek1/internal/delivery/middleware"
 	"proyek1/internal/model"
+	crypto "proyek1/utils"
 	jwt "proyek1/utils"
 	"proyek1/utils/gmaps"
 	"strconv"
@@ -45,9 +46,14 @@ func NewMapsHandler(jwt jwt.JWTInterface, gmaps gmaps.GmapsInterface, us MapsUse
 }
 
 func (h *MapsHandler) GmapsSearchbyObject(c *gin.Context) {
-	_, ok := middleware.GetUser(c)
+	dataToken, ok := middleware.GetUser(c)
 	if !ok {
 		c.JSON(http.StatusUnauthorized, gin.H{"message": "unauthorized"})
+		return
+	}
+
+	if crypto.IsUser(dataToken.Role) {
+		c.JSON(http.StatusUnauthorized, gin.H{"message": "unauthorized, can't identity user"})
 		return
 	}
 
@@ -71,9 +77,14 @@ func (h *MapsHandler) GmapsSearchbyObject(c *gin.Context) {
 }
 
 func (h *MapsHandler) GmapsSearchbyList(c *gin.Context) {
-	_, ok := middleware.GetUser(c)
+	dataToken, ok := middleware.GetUser(c)
 	if !ok {
 		c.JSON(http.StatusUnauthorized, gin.H{"message": "unauthorized"})
+		return
+	}
+
+	if crypto.IsUser(dataToken.Role) {
+		c.JSON(http.StatusUnauthorized, gin.H{"message": "unauthorized, can't identity user"})
 		return
 	}
 
@@ -96,9 +107,14 @@ func (h *MapsHandler) GmapsSearchbyList(c *gin.Context) {
 }
 
 func (h *MapsHandler) GmapsSearchbyPlaceID(c *gin.Context) {
-	_, ok := middleware.GetUser(c)
+	dataToken, ok := middleware.GetUser(c)
 	if !ok {
 		c.JSON(http.StatusUnauthorized, gin.H{"message": "unauthorized"})
+		return
+	}
+
+	if crypto.IsUser(dataToken.Role) {
+		c.JSON(http.StatusUnauthorized, gin.H{"message": "unauthorized, can't identity user"})
 		return
 	}
 
@@ -121,9 +137,14 @@ func (h *MapsHandler) GmapsSearchbyPlaceID(c *gin.Context) {
 }
 
 func (h *MapsHandler) InsertData(c *gin.Context) {
-	_, ok := middleware.GetUser(c)
+	dataToken, ok := middleware.GetUser(c)
 	if !ok {
 		c.JSON(http.StatusUnauthorized, gin.H{"message": "unauthorized"})
+		return
+	}
+
+	if !crypto.IsAdmin(dataToken.Role) {
+		c.JSON(http.StatusUnauthorized, gin.H{"message": "unauthorized, hanya admin yang boleh akses halaman ini"})
 		return
 	}
 
@@ -146,9 +167,14 @@ func (h *MapsHandler) InsertData(c *gin.Context) {
 }
 
 func (h *MapsHandler) GetTempatPagination(c *gin.Context) {
-	_, ok := middleware.GetUser(c)
+	dataToken, ok := middleware.GetUser(c)
 	if !ok {
 		c.JSON(http.StatusUnauthorized, gin.H{"message": "unauthorized"})
+		return
+	}
+
+	if crypto.IsUser(dataToken.Role) {
+		c.JSON(http.StatusUnauthorized, gin.H{"message": "unauthorized, can't identity user"})
 		return
 	}
 

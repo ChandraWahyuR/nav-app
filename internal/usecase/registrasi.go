@@ -20,7 +20,7 @@ import (
 )
 
 var (
-	RoleUser  = "user"
+	RoleUser  = "users"
 	RoleAdmin = "admin"
 )
 
@@ -142,7 +142,6 @@ func (s *UsecaseUser) Login(ctx context.Context, postData *model.Login) (*model.
 	}
 
 	userRole := s.userRepo.RoleChecker(ctx, res.ID)
-	fmt.Println("role:", userRole)
 	if userRole == "" {
 		return nil, errors.New("Error role tidak dapat ditentukan")
 	}

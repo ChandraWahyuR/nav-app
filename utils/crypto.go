@@ -64,3 +64,17 @@ func FormatJam(jam string) string {
 func TotalPageForPagination(totalDataDB, limit int) int {
 	return (totalDataDB + limit - 1) / limit
 }
+
+func IsUser(role string) bool {
+	if role != "user" || role == "" {
+		return true
+	}
+	return false
+}
+
+func IsAdmin(role string) bool {
+	if role != "admin" {
+		return false
+	}
+	return true
+}

@@ -88,7 +88,7 @@ func (r *RegistrasiRepo) GetUserID(ctx context.Context, id string) (entity.User,
 
 func (r *RegistrasiRepo) ForgotPassword(ctx context.Context, data *entity.Otp) error {
 	var dummy string
-	cekQuery := `SELECT email FROM "users" WHERE email = $1`
+	cekQuery := `SELECT email FROM "users" WHERE email = $1 AND deleted_at IS NULL`
 	err := r.db.QueryRowContext(ctx, cekQuery, data.Email).Scan(&dummy)
 	if err == sql.ErrNoRows {
 		r.Log.WithContext(ctx).Warn("email tidak ditemukan")

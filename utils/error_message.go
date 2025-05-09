@@ -9,7 +9,8 @@ const (
 )
 
 var (
-	ErrGetData       = errors.New("gagal saat mengambil data")
-	ErrEmailTaken    = errors.New("email sudah digunakan")
-	ErrUsernameTaken = errors.New("username sudah digunakan")
+	ErrGetData            = errors.New("gagal saat mengambil data")
+	ErrEmailTaken         = errors.New("email sudah digunakan")
+	ErrUsernameTaken      = errors.New("username sudah digunakan")
+	ErrPlaceIDUniqueTaken = errors.New("id tempat sudah digunakan, id harus unique")
 )
