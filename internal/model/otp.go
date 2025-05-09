@@ -7,4 +7,5 @@ type Otp struct {
 	Email      string    `json:"email"`
 	OtpNumber  int       `json:"otp_number"`
 	ValidUntil time.Time `json:"valid_until"`
+	Token      string    `json:"token"`
 }

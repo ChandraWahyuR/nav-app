@@ -24,11 +24,15 @@ func (c *RouteConfig) SetupUserRoute() {
 	c.App.POST("/register", c.UserController.Register)
 	c.App.POST("/login", c.UserController.Login)
 	c.App.POST("/reg-admin", c.UserController.RegisterForAdmin)
+	c.App.POST("/forgot-password", c.UserController.ForgotPassword)
+	c.App.POST("/otp-verify", c.UserController.OtpVerify)
 
 	private := c.App.Group("/")
 	private.Use(middleware.NewAuth(c.JWT))
 	private.GET("/profile", c.UserController.Profile)
 	private.PUT("/profile", c.UserController.EditProfile)
+	private.PUT("/reset-password", c.UserController.ResetPassword)
+
 }
 
 func (c *RouteConfig) SetupMapsRoute() {

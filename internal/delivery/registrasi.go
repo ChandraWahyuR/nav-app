@@ -20,6 +20,10 @@ type RegisterUsecaseInterface interface {
 	EditProfile(ctx context.Context, data *model.EditProfile, id string) error
 
 	RegisterForAdmin(ctx context.Context, req *model.User) error
+
+	ForgotPassword(ctx context.Context, req *model.Otp) error
+	OtpVerify(ctx context.Context, req *model.Otp) (*model.Otp, error)
+	ResetPassword(ctx context.Context, req *model.User) error
 }
 
 type RegisterHandlerInterface interface {
@@ -28,6 +32,9 @@ type RegisterHandlerInterface interface {
 	Profile(c *gin.Context)
 	EditProfile(c *gin.Context)
 	RegisterForAdmin(c *gin.Context)
+	ForgotPassword(c *gin.Context)
+	OtpVerify(c *gin.Context)
+	ResetPassword(c *gin.Context)
 }
 
 type UserHandler struct {
@@ -183,4 +190,84 @@ func (h *UserHandler) RegisterForAdmin(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusCreated, gin.H{"message": "Registrasi admin berhasil"})
+}
+
+func (h *UserHandler) ForgotPassword(c *gin.Context) {
+	ctx := c.Request.Context()
+
+	var data model.Otp
+	if err := c.Bind(&data); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	modelData := model.Otp{
+		Email: data.Email,
+	}
+
+	err := h.uc.ForgotPassword(ctx, &modelData)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusCreated, gin.H{"message": "Otp berhasil dibuat, silahkan cek email"})
+}
+
+func (h *UserHandler) OtpVerify(c *gin.Context) {
+	ctx := c.Request.Context()
+
+	var data model.Otp
+	if err := c.Bind(&data); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	modelData := model.Otp{
+		ID:        data.ID,
+		Email:     data.Email,
+		OtpNumber: data.OtpNumber,
+	}
+
+	res, err := h.uc.OtpVerify(ctx, &modelData)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"message": "otp berhasil diverifikasi", "token": res.Token})
+}
+
+func (h *UserHandler) ResetPassword(c *gin.Context) {
+	ctx := c.Request.Context()
+	dataToken, ok := middleware.GetUser(c)
+	if !ok {
+		c.JSON(http.StatusUnauthorized, gin.H{"message": "unatuhorize"})
+		return
+	}
+
+	if !crypto.IsForgot(dataToken.Role) {
+		c.JSON(http.StatusUnauthorized, gin.H{"message": "role apa njir"})
+		return
+	}
+
+	var data model.User
+	if err := c.Bind(&data); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	modelData := model.User{
+		Email:           dataToken.Email,
+		Password:        data.Password,
+		ConfirmPassword: data.ConfirmPassword,
+	}
+
+	err := h.uc.ResetPassword(ctx, &modelData)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"message": "reset password berhasil"})
 }

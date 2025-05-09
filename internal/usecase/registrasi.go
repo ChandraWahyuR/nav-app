@@ -6,22 +6,27 @@ import (
 	"errors"
 	"fmt"
 	"html/template"
+	"math/rand"
 	"proyek1/config"
 	"proyek1/internal/entity"
 	"proyek1/internal/model"
 	"proyek1/utils"
 	jwt "proyek1/utils"
 	"proyek1/utils/mailer"
+	"strconv"
 	"strings"
 	"sync"
+	"time"
 
 	"github.com/google/uuid"
 	"github.com/sirupsen/logrus"
 )
 
 var (
-	RoleUser  = "users"
-	RoleAdmin = "admin"
+	RoleUser   = "users"
+	RoleAdmin  = "admin"
+	RoleForgot = "forgot"
+	SubjectOTP = "OTP Reset Password"
 )
 
 type RepositoryUserInterface interface {
@@ -29,7 +34,8 @@ type RepositoryUserInterface interface {
 	Login(ctx context.Context, postData *entity.User) (*entity.User, error)
 	GetUserID(ctx context.Context, id string) (entity.User, error)
 	ForgotPassword(ctx context.Context, data *entity.Otp) error // Nanti
-	OtpVerify(ctx context.Context, data *entity.Otp) (*entity.Otp, error)
+	OtpVerify(ctx context.Context, email string, otp int) (*entity.Otp, error)
+	SoftDeleteOtpByID(ctx context.Context, id string) error
 	ResetPassword(ctx context.Context, data *entity.User) error
 
 	EditDataUser(ctx context.Context, data *entity.User, id string) error
@@ -303,6 +309,116 @@ func (s *UsecaseUser) RegisterForAdmin(ctx context.Context, req *model.User) err
 	}
 
 	err = s.userRepo.Register(ctx, &resData)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (s *UsecaseUser) ForgotPassword(ctx context.Context, req *model.Otp) error {
+	if req.Email == "" || !utils.ValidasiEmail(req.Email) {
+		return errors.New("format email tidak benar")
+	}
+
+	var entityModel entity.Otp
+	entityModel = entity.Otp{
+		ID:    uuid.New().String(),
+		Email: req.Email,
+	}
+
+	entityModel.OtpNumber, _ = strconv.Atoi(fmt.Sprintf("%05d", rand.Intn(100000)))
+	entityModel.ValidUntil = time.Now().Add(5 * time.Minute)
+	data := map[string]interface{}{
+		"OTP":         entityModel.OtpNumber,
+		"Valid_Until": entityModel.ValidUntil.Format("02 Jan 2006, 15:04:05 MST"),
+	}
+
+	template, err := template.ParseFiles("./static/body.otp.html")
+	if err != nil {
+		return fmt.Errorf("gagal load template email: %w", err)
+	}
+	var body bytes.Buffer
+	if err = template.Execute(&body, data); err != nil {
+		return fmt.Errorf("failed to execute email template: %w", err)
+	}
+
+	err = s.userRepo.ForgotPassword(ctx, &entityModel)
+	if err != nil {
+		return err
+	}
+
+	go func() {
+		err := s.m.SendMail(entityModel.Email, SubjectOTP, body.String(), data)
+		if err != nil {
+			s.log.WithContext(ctx).Error("gagal kirim email OTP:", err)
+		}
+	}()
+
+	return nil
+}
+
+func (s *UsecaseUser) OtpVerify(ctx context.Context, req *model.Otp) (*model.Otp, error) {
+	if req.Email == "" || !utils.ValidasiEmail(req.Email) {
+		return nil, errors.New("format email tidak benar")
+	}
+
+	data, err := s.userRepo.OtpVerify(ctx, req.Email, req.OtpNumber)
+	if err != nil {
+		return nil, err
+	}
+
+	if data.ValidUntil.Before(time.Now()) {
+		return nil, errors.New("otp telah expired")
+	}
+
+	if req.OtpNumber != data.OtpNumber {
+		return nil, fmt.Errorf("otp beda")
+	}
+
+	err = s.userRepo.SoftDeleteOtpByID(ctx, data.ID)
+	if err != nil {
+		return nil, fmt.Errorf("gagal menghapus otp: %v", err)
+	}
+
+	var modelUser model.User
+	modelUser = model.User{
+		ID:    req.ID,
+		Email: req.Email,
+		Role:  RoleForgot,
+	}
+	token, err := s.jwt.GenerateToken(&modelUser)
+	if err != nil {
+		return nil, err
+	}
+	tokenData := &model.Otp{}
+	tokenData.Token = token
+	return tokenData, nil
+}
+
+func (s *UsecaseUser) ResetPassword(ctx context.Context, req *model.User) error {
+	if req.Password != req.ConfirmPassword {
+		return fmt.Errorf("password dan confirm password berbeda")
+	}
+
+	pass, err := utils.ValidatePassword(req.Password)
+	if err != nil {
+		return fmt.Errorf("password tidak valid: %w", err)
+	}
+
+	hashedPassword, err := utils.HashPassword(pass)
+	if err != nil {
+		return err
+	}
+
+	var entityModel entity.User
+	entityModel = entity.User{
+		ID:       req.ID,
+		Email:    req.Email,
+		Password: hashedPassword,
+	}
+
+	err = s.userRepo.ResetPassword(ctx, &entityModel)
 	if err != nil {
 		return err
 	}

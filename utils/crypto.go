@@ -78,3 +78,10 @@ func IsAdmin(role string) bool {
 	}
 	return true
 }
+
+func IsForgot(role string) bool {
+	if role != "forgot" {
+		return false
+	}
+	return true
+}

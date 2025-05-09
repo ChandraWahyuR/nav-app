@@ -99,7 +99,7 @@ func (r *RegistrasiRepo) ForgotPassword(ctx context.Context, data *entity.Otp) e
 		return err
 	}
 
-	softDeleteQuery := `UPDATE otp SET deleted_at = NOW() WHERE email = $1 AND deleted_at IS NULL`
+	softDeleteQuery := `UPDATE otp SET deleted_at = NOW(), status = false WHERE email = $1 AND deleted_at IS NULL`
 	_, err = r.db.ExecContext(ctx, softDeleteQuery, data.Email)
 	if err != nil {
 		r.Log.WithContext(ctx).Error("gagal soft delete OTP:", err)
@@ -117,21 +117,33 @@ func (r *RegistrasiRepo) ForgotPassword(ctx context.Context, data *entity.Otp) e
 }
 
 // return entity, data mau dipakai di usecase, kalau hanya cek atau create saja return error saja
-func (r *RegistrasiRepo) OtpVerify(ctx context.Context, data *entity.Otp) (*entity.Otp, error) {
+func (r *RegistrasiRepo) OtpVerify(ctx context.Context, email string, otp int) (*entity.Otp, error) {
 	var dataEntity entity.Otp
-	query := `SELECT * FROM "otp" WHERE Email = $1 AND otp_number = $2 AND deleted_at IS Null`
-	err := r.db.QueryRowContext(ctx, query, data.Email, data.OtpNumber).Scan(&dataEntity)
+	query := `SELECT id, email, otp_number, valid_until FROM "otp" WHERE Email = $1 AND otp_number = $2 AND deleted_at IS Null`
+	err := r.db.QueryRowContext(ctx, query, email, otp).Scan(
+		&dataEntity.ID,
+		&dataEntity.Email,
+		&dataEntity.OtpNumber,
+		&dataEntity.ValidUntil,
+	)
 	if err != nil {
-		return nil, err
+		return nil, utils.ParsePQError(err)
 	}
 
-	queryUpdate := `UPDATE otp SET deleted_at = $1 WHERE id = $2`
-	_, err = r.db.ExecContext(ctx, queryUpdate, time.Now(), dataEntity.ID)
+	softDeleteQuery := `UPDATE otp SET deleted_at = NOW(), status = true WHERE email = $1 AND deleted_at IS NULL`
+	_, err = r.db.ExecContext(ctx, softDeleteQuery, email)
 	if err != nil {
-		return nil, err
+		r.Log.WithContext(ctx).Error("gagal soft delete OTP:", err)
+		return nil, utils.ParsePQError(err)
 	}
 
 	return &dataEntity, nil
+}
+
+func (r *RegistrasiRepo) SoftDeleteOtpByID(ctx context.Context, id string) error {
+	query := `UPDATE otp SET deleted_at = $1 WHERE id = $2`
+	_, err := r.db.ExecContext(ctx, query, time.Now(), id)
+	return err
 }
 
 func (r *RegistrasiRepo) ResetPassword(ctx context.Context, data *entity.User) error {
@@ -151,13 +163,11 @@ func (r *RegistrasiRepo) EditDataUser(ctx context.Context, data *entity.User, id
 		return utils.ParsePQError(err)
 	}
 
-	rows, err := result.RowsAffected()
-	if err != nil {
-		return err
+	rowsAffected, _ := result.RowsAffected()
+	if rowsAffected == 0 {
+		return fmt.Errorf("user tidak ditemukan atau sudah dihapus")
 	}
-	if rows == 0 {
-		return errors.New("tidak ada data yang diperbarui")
-	}
+
 	return nil
 }
 
