@@ -26,6 +26,7 @@ func (c *RouteConfig) SetupUserRoute() {
 	c.App.POST("/reg-admin", c.UserController.RegisterForAdmin)
 	c.App.POST("/forgot-password", c.UserController.ForgotPassword)
 	c.App.POST("/otp-verify", c.UserController.OtpVerify)
+	c.App.GET("/active", c.UserController.ActivateAcount)
 
 	private := c.App.Group("/")
 	private.Use(middleware.NewAuth(c.JWT))

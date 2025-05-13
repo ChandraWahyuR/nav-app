@@ -17,6 +17,7 @@ type Config struct {
 	GeneralPhoto General
 	SMTP         SMTP
 	Gmaps        GMAPS
+	URL_Server   string
 }
 
 type Database struct {
@@ -26,6 +27,7 @@ type Database struct {
 	dbPass string
 	dbUser string
 	SSL    string
+	cert   string
 }
 
 type General struct {
@@ -58,6 +60,7 @@ func EnvFile() *Config {
 			dbPass: os.Getenv("DATABASE_PASS"),
 			dbName: os.Getenv("DATABASE_NAME"),
 			SSL:    os.Getenv("DATABASE_SSL"),
+			cert:   os.Getenv("DATABASE_CERT"),
 		},
 		GeneralPhoto: General{
 			DefaultPhoto: os.Getenv("DEFAULT_PP"),
@@ -71,5 +74,6 @@ func EnvFile() *Config {
 		Gmaps: GMAPS{
 			GMAPS_API_KEY: os.Getenv("GMAPS_API_KEY"),
 		},
+		URL_Server: os.Getenv("ENDPOINT_SERVER"),
 	}
 }

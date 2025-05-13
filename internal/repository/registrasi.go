@@ -48,15 +48,14 @@ func (r *RegistrasiRepo) Register(ctx context.Context, postData *entity.User) er
 
 func (r *RegistrasiRepo) Login(ctx context.Context, postData *entity.User) (*entity.User, error) {
 	var userData entity.User
-	query := `SELECT id, email, password FROM "users" WHERE email = $1`
+	query := `SELECT id, email, password FROM "users" WHERE email = $1 AND is_active = true AND deleted_at IS NULL`
 	err := r.db.QueryRowContext(ctx, query, postData.Email).Scan(
 		&userData.ID, &userData.Email, &userData.Password)
-
-	fmt.Println("Email dicari:", postData.Email)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
-			return nil, errors.New("email tidak ditemukan")
+			return nil, errors.New("email tidak ditemukan atau belum aktif")
 		}
+
 		return nil, fmt.Errorf("gagal mengambil data login: %w", err)
 	}
 
@@ -159,6 +158,21 @@ func (r *RegistrasiRepo) ResetPassword(ctx context.Context, data *entity.User) e
 func (r *RegistrasiRepo) EditDataUser(ctx context.Context, data *entity.User, id string) error {
 	query := `UPDATE users SET username = $1, password = $2, photo_profile = $3 WHERE id = $4 AND deleted_at IS NULL`
 	result, err := r.db.ExecContext(ctx, query, data.Username, data.Password, data.PhotoProfile, id)
+	if err != nil {
+		return utils.ParsePQError(err)
+	}
+
+	rowsAffected, _ := result.RowsAffected()
+	if rowsAffected == 0 {
+		return fmt.Errorf("user tidak ditemukan atau sudah dihapus")
+	}
+
+	return nil
+}
+
+func (r *RegistrasiRepo) ActivateAcount(ctx context.Context, email string) error {
+	query := `UPDATE users SET is_active = true WHERE email = $1 AND deleted_at IS NULL`
+	result, err := r.db.ExecContext(ctx, query, email)
 	if err != nil {
 		return utils.ParsePQError(err)
 	}

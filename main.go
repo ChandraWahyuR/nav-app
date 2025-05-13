@@ -49,7 +49,7 @@ func main() {
 	app.App(bootstrap)
 
 	// Jalankan server
-	err = serve.Run("localhost:8081")
+	err = serve.Run(":8081")
 	if err != nil {
 		fmt.Println("Server tidak bisa dijalankan:", err)
 	}

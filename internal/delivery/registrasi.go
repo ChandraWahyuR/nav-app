@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"net/http"
+	"proyek1/constant"
 	"proyek1/internal/delivery/middleware"
 	"proyek1/internal/model"
 	crypto "proyek1/utils"
@@ -24,6 +25,7 @@ type RegisterUsecaseInterface interface {
 	ForgotPassword(ctx context.Context, req *model.Otp) error
 	OtpVerify(ctx context.Context, req *model.Otp) (*model.Otp, error)
 	ResetPassword(ctx context.Context, req *model.User) error
+	ActivateAcount(ctx context.Context, email string) error
 }
 
 type RegisterHandlerInterface interface {
@@ -35,6 +37,7 @@ type RegisterHandlerInterface interface {
 	ForgotPassword(c *gin.Context)
 	OtpVerify(c *gin.Context)
 	ResetPassword(c *gin.Context)
+	ActivateAcount(c *gin.Context)
 }
 
 type UserHandler struct {
@@ -270,4 +273,32 @@ func (h *UserHandler) ResetPassword(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, gin.H{"message": "reset password berhasil"})
+}
+
+func (h *UserHandler) ActivateAcount(c *gin.Context) {
+	token := c.Query("token")
+	if token == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "token is required"})
+		return
+	}
+
+	userData, err := h.jwt.VerifyToken(token)
+	if err != nil {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "invalid token"})
+		return
+	}
+
+	if !crypto.IsUser(userData.Role) {
+		c.JSON(http.StatusUnauthorized, gin.H{"message": "role tidak diizinkan"})
+		return
+	}
+
+	ctx := c.Request.Context()
+	err = h.uc.ActivateAcount(ctx, userData.Email)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.Redirect(http.StatusSeeOther, constant.VercelRoute) // 303
 }

@@ -42,6 +42,7 @@ type RepositoryUserInterface interface {
 	//
 	IsDataAvailable(ctx context.Context, email, username string) bool
 	RoleChecker(ctx context.Context, id string) string
+	ActivateAcount(ctx context.Context, email string) error
 }
 
 type UsecaseUser struct {
@@ -103,7 +104,7 @@ func (s *UsecaseUser) Register(ctx context.Context, userData *model.User) error 
 		Password:     hashedPassword,
 		PhotoProfile: s.cfg.GeneralPhoto.DefaultPhoto,
 		Role:         RoleUser,
-		IsActive:     true, // sementara
+		IsActive:     false,
 	}
 
 	err = s.userRepo.Register(ctx, &resData)
@@ -111,11 +112,18 @@ func (s *UsecaseUser) Register(ctx context.Context, userData *model.User) error 
 		return err
 	}
 
+	token, err := s.jwt.GenerateToken(&model.User{ID: resData.ID, Email: resData.Email, Role: resData.Role})
+	if err != nil {
+		return err
+	}
+	link := fmt.Sprintf(`%s/active?token=%s`, s.cfg.URL_Server, token)
+
 	var wg sync.WaitGroup
 	wg.Add(1)
+
 	go func() {
 		fmt.Println(resData)
-		err := s.sendVerificationEmail(resData, "adsfd")
+		err := s.sendVerificationEmail(resData, link)
 		if err != nil {
 			fmt.Println("Gagal mengirim email verifikasi:", err)
 		}
@@ -305,7 +313,7 @@ func (s *UsecaseUser) RegisterForAdmin(ctx context.Context, req *model.User) err
 		Password:     hashedPassword,
 		PhotoProfile: s.cfg.GeneralPhoto.DefaultPhoto,
 		Role:         RoleAdmin,
-		IsActive:     true, // sementara
+		IsActive:     true,
 	}
 
 	err = s.userRepo.Register(ctx, &resData)
@@ -419,6 +427,19 @@ func (s *UsecaseUser) ResetPassword(ctx context.Context, req *model.User) error 
 	}
 
 	err = s.userRepo.ResetPassword(ctx, &entityModel)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (s *UsecaseUser) ActivateAcount(ctx context.Context, email string) error {
+	if email == "" {
+		return fmt.Errorf("err email kosong")
+	}
+
+	err := s.userRepo.ActivateAcount(ctx, email)
 	if err != nil {
 		return err
 	}
