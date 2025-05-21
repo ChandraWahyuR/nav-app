@@ -33,7 +33,6 @@ func (c *RouteConfig) SetupUserRoute() {
 	private.GET("/profile", c.UserController.Profile)
 	private.PUT("/profile", c.UserController.EditProfile)
 	private.PUT("/reset-password", c.UserController.ResetPassword)
-
 }
 
 func (c *RouteConfig) SetupMapsRoute() {

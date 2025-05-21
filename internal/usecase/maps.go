@@ -50,7 +50,6 @@ func (s *UsecaseMaps) InsertTempat(ctx context.Context, placeId string) error {
 
 	return nil
 }
-
 func (s *UsecaseMaps) GetTempatPagination(ctx context.Context, limit, page int) ([]model.GetAllTempat, int, error) {
 	total, err := s.repo.GetTotalTempat(ctx)
 	if err != nil {
@@ -89,7 +88,7 @@ func (s *UsecaseMaps) GetTempatPagination(ctx context.Context, limit, page int) 
 			// 	continue
 			// }
 
-			proxyURL := fmt.Sprintf("http://localhost:8081/photo?ref=%s", f.PhotoRefrences)
+			proxyURL := f.PhotoRefrences
 			foto = append(foto, model.FotoTempatGetAll{
 				WidthPx:        f.WidthPx,
 				HeightPx:       f.HeightPx,

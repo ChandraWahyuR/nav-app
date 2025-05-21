@@ -7,6 +7,7 @@ import (
 	"proyek1/constant"
 	"proyek1/internal/delivery/middleware"
 	"proyek1/internal/model"
+	"proyek1/utils"
 	crypto "proyek1/utils"
 	jwt "proyek1/utils"
 
@@ -63,7 +64,7 @@ func (h *UserHandler) Register(c *gin.Context) {
 	ctx := c.Request.Context()
 	var data model.Register
 	if err := c.Bind(&data); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		c.JSON(http.StatusUnprocessableEntity, utils.ResponseHandler(constant.StatusFail, "error memproses data", nil))
 		return
 	}
 
@@ -75,47 +76,48 @@ func (h *UserHandler) Register(c *gin.Context) {
 	}
 	err := h.uc.Register(ctx, &modelData)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		c.JSON(utils.ConverResponse(err), utils.ResponseHandler(constant.StatusFail, "error terjadi kesalahan", nil))
 		return
 	}
 
-	c.JSON(http.StatusCreated, gin.H{"message": "Registrasi berhasil"})
+	c.JSON(http.StatusCreated, utils.ResponseHandler(constant.StatusSuccess, "Berhasil membuat akun", nil))
 }
 
 func (h *UserHandler) Login(c *gin.Context) {
 	var data model.Login
 	if err := c.Bind(&data); err != nil {
-		c.JSON(http.StatusUnprocessableEntity, gin.H{"error": err.Error()})
+		c.JSON(http.StatusUnprocessableEntity, utils.ResponseHandler(constant.StatusFail, "error memproses data", nil))
 		return
 	}
 
 	ctx := c.Request.Context()
 	result, err := h.uc.Login(ctx, &data)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		c.JSON(utils.ConverResponse(err), utils.ResponseHandler(constant.StatusFail, "error terjadi kesalahan", nil))
 		return
 	}
-
-	res := result.Token
-	c.JSON(http.StatusOK, gin.H{"message": "Berhasil login", "token": res})
+	res := map[string]string{
+		"token": result.Token,
+	}
+	c.JSON(http.StatusOK, utils.ResponseHandler(constant.StatusSuccess, "Login berhasil", res))
 }
 
 func (h *UserHandler) Profile(c *gin.Context) {
 	dataToken, ok := middleware.GetUser(c)
 	if !ok {
-		c.JSON(http.StatusUnauthorized, gin.H{"message": "unatuhorize"})
+		c.JSON(http.StatusUnauthorized, utils.ResponseHandler(constant.StatusFail, "Unatuhorize", nil))
 		return
 	}
 
-	if crypto.IsUser(dataToken.Role) {
-		c.JSON(http.StatusUnauthorized, gin.H{"message": "role apa njir"})
+	if !crypto.IsUser(dataToken.Role) {
+		c.JSON(http.StatusUnauthorized, utils.ResponseHandler(constant.StatusFail, "error unknown jwt", nil))
 		return
 	}
 
 	ctx := c.Request.Context()
 	userData, err := h.uc.Profile(ctx, dataToken.ID)
 	if err != nil {
-		c.JSON(http.StatusUnauthorized, gin.H{"message": "error proses id"})
+		c.JSON(utils.ConverResponse(err), utils.ResponseHandler(constant.StatusFail, "error terjadi kesalahan", nil))
 		return
 	}
 
@@ -126,10 +128,7 @@ func (h *UserHandler) Profile(c *gin.Context) {
 		PhotoProfile: userData.PhotoProfile,
 	}
 
-	c.JSON(http.StatusOK, gin.H{
-		"message": "Profile success",
-		"data":    resData,
-	})
+	c.JSON(http.StatusOK, utils.ResponseHandler(constant.StatusSuccess, "Berhasil mengambil data pengguna", resData))
 }
 
 func (h *UserHandler) EditProfile(c *gin.Context) {
@@ -140,18 +139,18 @@ func (h *UserHandler) EditProfile(c *gin.Context) {
 	}()
 	dataToken, ok := middleware.GetUser(c)
 	if !ok {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": "unauthorized"})
+		c.JSON(http.StatusUnauthorized, utils.ResponseHandler(constant.StatusFail, "Unauthorize", nil))
 		return
 	}
 
-	if crypto.IsUser(dataToken.Role) {
-		c.JSON(http.StatusUnauthorized, gin.H{"message": "role apa njir"})
+	if !crypto.IsUser(dataToken.Role) {
+		c.JSON(http.StatusUnauthorized, utils.ResponseHandler(constant.StatusFail, "error unknown jwt", nil))
 		return
 	}
 
 	var data model.EditProfile
 	if err := c.Bind(&data); err != nil {
-		c.JSON(http.StatusUnprocessableEntity, gin.H{"error": err.Error()})
+		c.JSON(http.StatusUnprocessableEntity, utils.ResponseHandler(constant.StatusFail, "error memproses data", nil))
 		return
 	}
 	dataUser := &model.EditProfile{
@@ -163,19 +162,18 @@ func (h *UserHandler) EditProfile(c *gin.Context) {
 	ctx := c.Request.Context()
 	err := h.uc.EditProfile(ctx, dataUser, dataToken.ID)
 	if err != nil {
-		fmt.Println("err :", err)
-		c.JSON(http.StatusBadRequest, gin.H{"message": "error proses data"})
+		c.JSON(utils.ConverResponse(err), utils.ResponseHandler(constant.StatusFail, "error terjadi kesalahan", nil))
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{"status": "data berhasil di edit"})
+	c.JSON(http.StatusOK, utils.ResponseHandler(constant.StatusSuccess, "Berhasil mengedit data", nil))
 }
 
 func (h *UserHandler) RegisterForAdmin(c *gin.Context) {
 	ctx := c.Request.Context()
 	var data model.Register
 	if err := c.Bind(&data); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		c.JSON(http.StatusUnprocessableEntity, utils.ResponseHandler(constant.StatusFail, "error memproses data", nil))
 		return
 	}
 
@@ -188,11 +186,11 @@ func (h *UserHandler) RegisterForAdmin(c *gin.Context) {
 
 	err := h.uc.RegisterForAdmin(ctx, &modelData)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		c.JSON(utils.ConverResponse(err), utils.ResponseHandler(constant.StatusFail, "error terjadi kesalahan", nil))
 		return
 	}
 
-	c.JSON(http.StatusCreated, gin.H{"message": "Registrasi admin berhasil"})
+	c.JSON(http.StatusCreated, utils.ResponseHandler(constant.StatusSuccess, "Berhasil membuat akun admin", nil))
 }
 
 func (h *UserHandler) ForgotPassword(c *gin.Context) {
@@ -200,7 +198,7 @@ func (h *UserHandler) ForgotPassword(c *gin.Context) {
 
 	var data model.Otp
 	if err := c.Bind(&data); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		c.JSON(http.StatusUnprocessableEntity, utils.ResponseHandler(constant.StatusFail, "error memproses data", nil))
 		return
 	}
 
@@ -210,11 +208,11 @@ func (h *UserHandler) ForgotPassword(c *gin.Context) {
 
 	err := h.uc.ForgotPassword(ctx, &modelData)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		c.JSON(utils.ConverResponse(err), utils.ResponseHandler(constant.StatusFail, "error terjadi kesalahan", nil))
 		return
 	}
 
-	c.JSON(http.StatusCreated, gin.H{"message": "Otp berhasil dibuat, silahkan cek email"})
+	c.JSON(http.StatusCreated, utils.ResponseHandler(constant.StatusSuccess, "Otp telah dikirim ke email, cek spam jika tidak terlihat di beranda email", nil))
 }
 
 func (h *UserHandler) OtpVerify(c *gin.Context) {
@@ -222,7 +220,7 @@ func (h *UserHandler) OtpVerify(c *gin.Context) {
 
 	var data model.Otp
 	if err := c.Bind(&data); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		c.JSON(http.StatusUnprocessableEntity, utils.ResponseHandler(constant.StatusFail, "error memproses data", nil))
 		return
 	}
 
@@ -232,31 +230,34 @@ func (h *UserHandler) OtpVerify(c *gin.Context) {
 		OtpNumber: data.OtpNumber,
 	}
 
-	res, err := h.uc.OtpVerify(ctx, &modelData)
+	result, err := h.uc.OtpVerify(ctx, &modelData)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		c.JSON(utils.ConverResponse(err), utils.ResponseHandler(constant.StatusFail, "error terjadi kesalahan", nil))
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{"message": "otp berhasil diverifikasi", "token": res.Token})
+	res := map[string]string{
+		"token": result.Token,
+	}
+	c.JSON(http.StatusCreated, utils.ResponseHandler(constant.StatusSuccess, "Otp telah dikirim ke email, cek spam jika tidak terlihat di beranda email", res))
 }
 
 func (h *UserHandler) ResetPassword(c *gin.Context) {
 	ctx := c.Request.Context()
 	dataToken, ok := middleware.GetUser(c)
 	if !ok {
-		c.JSON(http.StatusUnauthorized, gin.H{"message": "unatuhorize"})
+		c.JSON(http.StatusUnauthorized, utils.ResponseHandler(constant.StatusFail, "Unauthorize", nil))
 		return
 	}
 
 	if !crypto.IsForgot(dataToken.Role) {
-		c.JSON(http.StatusUnauthorized, gin.H{"message": "role apa njir"})
+		c.JSON(http.StatusUnauthorized, utils.ResponseHandler(constant.StatusFail, "error unknown token data", nil))
 		return
 	}
 
 	var data model.User
 	if err := c.Bind(&data); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		c.JSON(http.StatusUnprocessableEntity, utils.ResponseHandler(constant.StatusFail, "error memproses data", nil))
 		return
 	}
 
@@ -268,35 +269,35 @@ func (h *UserHandler) ResetPassword(c *gin.Context) {
 
 	err := h.uc.ResetPassword(ctx, &modelData)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		c.JSON(utils.ConverResponse(err), utils.ResponseHandler(constant.StatusFail, "error terjadi kesalahan", nil))
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{"message": "reset password berhasil"})
+	c.JSON(http.StatusOK, utils.ResponseHandler(constant.StatusSuccess, "Otp benar", nil))
 }
 
 func (h *UserHandler) ActivateAcount(c *gin.Context) {
 	token := c.Query("token")
 	if token == "" {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "token is required"})
+		c.JSON(http.StatusUnauthorized, utils.ResponseHandler(constant.StatusFail, "Unauthorize", nil))
 		return
 	}
 
 	userData, err := h.jwt.VerifyToken(token)
 	if err != nil {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": "invalid token"})
+		c.JSON(http.StatusUnauthorized, utils.ResponseHandler(constant.StatusFail, "invalid token", nil))
 		return
 	}
 
 	if !crypto.IsUser(userData.Role) {
-		c.JSON(http.StatusUnauthorized, gin.H{"message": "role tidak diizinkan"})
+		c.JSON(http.StatusUnauthorized, utils.ResponseHandler(constant.StatusFail, "error unknown token data", nil))
 		return
 	}
 
 	ctx := c.Request.Context()
 	err = h.uc.ActivateAcount(ctx, userData.Email)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		c.JSON(utils.ConverResponse(err), utils.ResponseHandler(constant.StatusFail, "error terjadi kesalahan", nil))
 		return
 	}
 

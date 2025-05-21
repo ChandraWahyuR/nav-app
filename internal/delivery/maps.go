@@ -4,8 +4,10 @@ import (
 	"context"
 	"io"
 	"net/http"
+	"proyek1/constant"
 	"proyek1/internal/delivery/middleware"
 	"proyek1/internal/model"
+	"proyek1/utils"
 	crypto "proyek1/utils"
 	jwt "proyek1/utils"
 	"proyek1/utils/gmaps"
@@ -48,133 +50,122 @@ func NewMapsHandler(jwt jwt.JWTInterface, gmaps gmaps.GmapsInterface, us MapsUse
 func (h *MapsHandler) GmapsSearchbyObject(c *gin.Context) {
 	dataToken, ok := middleware.GetUser(c)
 	if !ok {
-		c.JSON(http.StatusUnauthorized, gin.H{"message": "unauthorized"})
+		c.JSON(http.StatusUnauthorized, utils.ResponseHandler(constant.StatusFail, "Unauthorize", nil))
 		return
 	}
 
-	if crypto.IsUser(dataToken.Role) {
-		c.JSON(http.StatusUnauthorized, gin.H{"message": "unauthorized, can't identity user"})
+	if !crypto.IsUser(dataToken.Role) {
+		c.JSON(http.StatusUnauthorized, utils.ResponseHandler(constant.StatusFail, "error unknown token data", nil))
 		return
 	}
 
 	query := c.Query("query")
 	if query == "" {
-		c.JSON(http.StatusBadRequest, gin.H{"message": "query tidak boleh kosong"})
+		c.JSON(http.StatusBadRequest, utils.ResponseHandler(constant.StatusFail, "query tidak boleh kosong", nil))
 		return
 	}
 
 	// Panggil langsung service/fungsi GmapsAdd
 	results, err := h.gmaps.GmapsSearchObject(query)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"message": "gagal memproses maps", "error": err.Error()})
+		c.JSON(utils.ConverResponse(err), utils.ResponseHandler(constant.StatusFail, "error terjadi kesalahan", nil))
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{
-		"message": "berhasil",
-		"data":    results,
-	})
+	c.JSON(http.StatusCreated, utils.ResponseHandler(constant.StatusSuccess, "Berhasil mendapatkan data", results))
 }
 
 func (h *MapsHandler) GmapsSearchbyList(c *gin.Context) {
 	dataToken, ok := middleware.GetUser(c)
 	if !ok {
-		c.JSON(http.StatusUnauthorized, gin.H{"message": "unauthorized"})
+		c.JSON(http.StatusUnauthorized, utils.ResponseHandler(constant.StatusFail, "Unauthorize", nil))
 		return
 	}
 
-	if crypto.IsUser(dataToken.Role) {
-		c.JSON(http.StatusUnauthorized, gin.H{"message": "unauthorized, can't identity user"})
+	if !crypto.IsUser(dataToken.Role) {
+		c.JSON(http.StatusUnauthorized, utils.ResponseHandler(constant.StatusFail, "error unknown token data", nil))
 		return
 	}
 
 	query := c.Query("query")
 	if query == "" {
-		c.JSON(http.StatusBadRequest, gin.H{"message": "query tidak boleh kosong"})
+		c.JSON(http.StatusBadRequest, utils.ResponseHandler(constant.StatusFail, "query tidak boleh kosong", nil))
 		return
 	}
 
 	results, err := h.gmaps.GmapsSearchList(query)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"message": "gagal memproses maps", "error": err.Error()})
+		c.JSON(utils.ConverResponse(err), utils.ResponseHandler(constant.StatusFail, "error terjadi kesalahan", nil))
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{
-		"message": "berhasil",
-		"data":    results,
-	})
+	c.JSON(http.StatusCreated, utils.ResponseHandler(constant.StatusSuccess, "Berhasil mendapatkan data", results))
 }
 
 func (h *MapsHandler) GmapsSearchbyPlaceID(c *gin.Context) {
 	dataToken, ok := middleware.GetUser(c)
 	if !ok {
-		c.JSON(http.StatusUnauthorized, gin.H{"message": "unauthorized"})
+		c.JSON(http.StatusUnauthorized, utils.ResponseHandler(constant.StatusFail, "Unauthorize", nil))
 		return
 	}
 
-	if crypto.IsUser(dataToken.Role) {
-		c.JSON(http.StatusUnauthorized, gin.H{"message": "unauthorized, can't identity user"})
+	if !crypto.IsUser(dataToken.Role) {
+		c.JSON(http.StatusUnauthorized, utils.ResponseHandler(constant.StatusFail, "error unknown token data", nil))
 		return
 	}
 
 	placeId := c.Param("id")
 	if placeId == "" {
-		c.JSON(http.StatusBadRequest, gin.H{"message": "placeId tidak boleh kosong"})
+		c.JSON(http.StatusBadRequest, utils.ResponseHandler(constant.StatusFail, "id kosong", nil))
 		return
 	}
 
 	results, err := h.gmaps.GmapsSearchByPlaceID(placeId)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"message": "gagal memproses maps", "error": err.Error()})
+		c.JSON(utils.ConverResponse(err), utils.ResponseHandler(constant.StatusFail, "error terjadi kesalahan", nil))
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{
-		"message": "berhasil",
-		"data":    results,
-	})
+	c.JSON(http.StatusCreated, utils.ResponseHandler(constant.StatusSuccess, "Berhasil mendapatkan data", results))
 }
 
 func (h *MapsHandler) InsertData(c *gin.Context) {
 	dataToken, ok := middleware.GetUser(c)
 	if !ok {
-		c.JSON(http.StatusUnauthorized, gin.H{"message": "unauthorized"})
+		c.JSON(http.StatusUnauthorized, utils.ResponseHandler(constant.StatusFail, "Unauthorize", nil))
 		return
 	}
 
 	if !crypto.IsAdmin(dataToken.Role) {
-		c.JSON(http.StatusUnauthorized, gin.H{"message": "unauthorized, hanya admin yang boleh akses halaman ini"})
+		c.JSON(http.StatusUnauthorized, utils.ResponseHandler(constant.StatusFail, "error unknown token data", nil))
 		return
 	}
 
 	placeId := c.Param("id")
 	if placeId == "" {
-		c.JSON(http.StatusBadRequest, gin.H{"message": "placeId tidak boleh kosong"})
+		c.JSON(http.StatusBadRequest, utils.ResponseHandler(constant.StatusFail, "id kosong", nil))
 		return
 	}
 
 	ctx := c.Request.Context()
 	err := h.us.InsertTempat(ctx, placeId)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"message": "gagal memproses maps", "error": err.Error()})
+		c.JSON(utils.ConverResponse(err), utils.ResponseHandler(constant.StatusFail, "error terjadi kesalahan", nil))
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{
-		"message": "berhasil",
-	})
+	c.JSON(http.StatusCreated, utils.ResponseHandler(constant.StatusSuccess, "Berhasil menambahkan data", nil))
 }
 
 func (h *MapsHandler) GetTempatPagination(c *gin.Context) {
 	dataToken, ok := middleware.GetUser(c)
 	if !ok {
-		c.JSON(http.StatusUnauthorized, gin.H{"message": "unauthorized"})
+		c.JSON(http.StatusUnauthorized, utils.ResponseHandler(constant.StatusFail, "Unauthorize", nil))
 		return
 	}
 
-	if crypto.IsUser(dataToken.Role) {
-		c.JSON(http.StatusUnauthorized, gin.H{"message": "unauthorized, can't identity user"})
+	if !crypto.IsUser(dataToken.Role) {
+		c.JSON(http.StatusUnauthorized, utils.ResponseHandler(constant.StatusFail, "error unknown token data", nil))
 		return
 	}
 
@@ -187,35 +178,35 @@ func (h *MapsHandler) GetTempatPagination(c *gin.Context) {
 	ctx := c.Request.Context()
 	res, pageTotal, err := h.us.GetTempatPagination(ctx, 5, int(page))
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"message": "gagal memproses maps", "error": err.Error()})
+		c.JSON(utils.ConverResponse(err), utils.ResponseHandler(constant.StatusFail, "error terjadi kesalahan", nil))
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{
-		"message":     "berhasil",
-		"total_pages": pageTotal,
-		"data":        res,
-	})
+	metadata := map[string]int{
+		"totalPage": pageTotal,
+		"page":      page,
+	}
+	c.JSON(http.StatusOK, utils.MetadataFormatResponse(constant.StatusSuccess, "Berhasil mendapatkan data", metadata, res))
 }
 
 // Proxy
 func (h *MapsHandler) ProxyPhotoHandler(c *gin.Context) {
 	photoRef := c.Query("ref")
 	if photoRef == "" {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "photo_reference is required"})
+		c.JSON(http.StatusBadRequest, utils.ResponseHandler(constant.StatusFail, "photo ref kosong", nil))
 		return
 	}
 
 	photoURL, err := h.gmaps.PhotoReference(photoRef)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		c.JSON(utils.ConverResponse(err), utils.ResponseHandler(constant.StatusFail, "error terjadi kesalahan", nil))
 		return
 	}
 
 	client := &http.Client{Timeout: 10 * time.Second} // timeout
 	resp, err := client.Get(photoURL)
 	if err != nil || resp.StatusCode != http.StatusOK {
-		c.JSON(http.StatusBadGateway, gin.H{"error": "failed to fetch photo from Google"})
+		c.JSON(http.StatusBadGateway, utils.ResponseHandler(constant.StatusFail, "error terjadi kesalahan mengambil gambar", nil))
 		return
 	}
 	defer resp.Body.Close()
@@ -227,15 +218,20 @@ func (h *MapsHandler) ProxyPhotoHandler(c *gin.Context) {
 }
 
 func (h *MapsHandler) RouteDestination(c *gin.Context) {
-	_, ok := middleware.GetUser(c)
+	dataToken, ok := middleware.GetUser(c)
 	if !ok {
-		c.JSON(http.StatusUnauthorized, gin.H{"message": "unauthorized"})
+		c.JSON(http.StatusUnauthorized, utils.ResponseHandler(constant.StatusFail, "Unauthorize", nil))
+		return
+	}
+
+	if !crypto.IsUser(dataToken.Role) {
+		c.JSON(http.StatusUnauthorized, utils.ResponseHandler(constant.StatusFail, "error unknown token data", nil))
 		return
 	}
 
 	placeId := c.Param("id")
 	if placeId == "" {
-		c.JSON(http.StatusBadRequest, gin.H{"message": "placeId tidak boleh kosong"})
+		c.JSON(http.StatusUnauthorized, utils.ResponseHandler(constant.StatusFail, "parameter id tempat tidak boleh kosong", nil))
 		return
 	}
 
@@ -243,7 +239,7 @@ func (h *MapsHandler) RouteDestination(c *gin.Context) {
 
 	var req model.RequestRouteMaps
 	if err := c.Bind(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		c.JSON(http.StatusUnprocessableEntity, utils.ResponseHandler(constant.StatusFail, "error memproses data", nil))
 		return
 	}
 
@@ -267,9 +263,9 @@ func (h *MapsHandler) RouteDestination(c *gin.Context) {
 	}
 	data, err := h.us.RouteDestination(ctx, modelReq, placeId)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		c.JSON(utils.ConverResponse(err), utils.ResponseHandler(constant.StatusFail, "error terjadi kesalahan", nil))
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{"message": "berhasil", "data": data})
+	c.JSON(http.StatusOK, utils.ResponseHandler(constant.StatusSuccess, "Berhasil mendapatkan data", data))
 }

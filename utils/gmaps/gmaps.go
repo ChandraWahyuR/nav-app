@@ -110,7 +110,7 @@ func (c *gmapsStruct) GmapsSearchList(inputTempat string) ([]model.Maps, error) 
 
 func (c *gmapsStruct) GmapsSearchByPlaceID(placeID string) (model.MapsGetByPlaceId, error) {
 	encodedInput := url.QueryEscape(placeID)
-	requestURL := fmt.Sprintf("%s=%s&key=%s", constant.GmapsGetByPlaceID, encodedInput, c.c.GMAPS_API_KEY)
+	requestURL := fmt.Sprintf("%s=%s&language=id&key=%s", constant.GmapsGetByPlaceID, encodedInput, c.c.GMAPS_API_KEY)
 
 	resp, err := http.Get(requestURL)
 	if err != nil {

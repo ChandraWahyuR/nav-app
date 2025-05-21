@@ -28,7 +28,7 @@ func (j *JWT) GenerateToken(data *model.User) (string, error) {
 		"id":    data.ID,
 		"email": data.Email,
 		"role":  data.Role,
-		"exp":   time.Now().Add(time.Hour * 24).Unix(),
+		"exp":   time.Now().Add(time.Hour * 24 * 30).Unix(),
 		"iat":   time.Now().Unix(), // tgl dibuat jwt ini
 	})
 
