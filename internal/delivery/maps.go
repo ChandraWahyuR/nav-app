@@ -26,12 +26,14 @@ type MapsHandlerInterface interface {
 	GetTempatPagination(c *gin.Context)
 	ProxyPhotoHandler(c *gin.Context)
 	RouteDestination(c *gin.Context)
+	GetDetailTempat(c *gin.Context)
 }
 
 type MapsUsecaseInterface interface {
 	InsertTempat(ctx context.Context, placeId string) error
-	GetTempatPagination(ctx context.Context, limit, page int) ([]model.GetAllTempat, int, error)
+	GetTempatPagination(ctx context.Context, name string, limit, page int) ([]model.GetAllTempat, int, error)
 	RouteDestination(ctx context.Context, req model.RequestRouteMaps, placeID string) (*model.ResponseRouteMaps, error)
+	GetDetailTempat(ctx context.Context, id string) (model.GetDetailTempat, error)
 }
 type MapsHandler struct {
 	jwt   jwt.JWTInterface
@@ -68,7 +70,7 @@ func (h *MapsHandler) GmapsSearchbyObject(c *gin.Context) {
 	// Panggil langsung service/fungsi GmapsAdd
 	results, err := h.gmaps.GmapsSearchObject(query)
 	if err != nil {
-		c.JSON(utils.ConverResponse(err), utils.ResponseHandler(constant.StatusFail, "error terjadi kesalahan", nil))
+		c.JSON(utils.ConverResponse(err), utils.ResponseHandler(constant.StatusFail, err.Error(), nil))
 		return
 	}
 
@@ -95,7 +97,7 @@ func (h *MapsHandler) GmapsSearchbyList(c *gin.Context) {
 
 	results, err := h.gmaps.GmapsSearchList(query)
 	if err != nil {
-		c.JSON(utils.ConverResponse(err), utils.ResponseHandler(constant.StatusFail, "error terjadi kesalahan", nil))
+		c.JSON(utils.ConverResponse(err), utils.ResponseHandler(constant.StatusFail, err.Error(), nil))
 		return
 	}
 
@@ -122,7 +124,7 @@ func (h *MapsHandler) GmapsSearchbyPlaceID(c *gin.Context) {
 
 	results, err := h.gmaps.GmapsSearchByPlaceID(placeId)
 	if err != nil {
-		c.JSON(utils.ConverResponse(err), utils.ResponseHandler(constant.StatusFail, "error terjadi kesalahan", nil))
+		c.JSON(utils.ConverResponse(err), utils.ResponseHandler(constant.StatusFail, err.Error(), nil))
 		return
 	}
 
@@ -150,7 +152,7 @@ func (h *MapsHandler) InsertData(c *gin.Context) {
 	ctx := c.Request.Context()
 	err := h.us.InsertTempat(ctx, placeId)
 	if err != nil {
-		c.JSON(utils.ConverResponse(err), utils.ResponseHandler(constant.StatusFail, "error terjadi kesalahan", nil))
+		c.JSON(utils.ConverResponse(err), utils.ResponseHandler(constant.StatusFail, err.Error(), nil))
 		return
 	}
 
@@ -169,16 +171,20 @@ func (h *MapsHandler) GetTempatPagination(c *gin.Context) {
 		return
 	}
 
-	p := c.Param("page")
+	p := c.Query("page")
 	if p == "" {
 		p = "1"
 	}
-	page, _ := strconv.Atoi(p)
+	page, err := strconv.Atoi(p)
+	if err != nil || page <= 0 {
+		page = 1
+	}
 
+	n := c.Query("search")
 	ctx := c.Request.Context()
-	res, pageTotal, err := h.us.GetTempatPagination(ctx, 5, int(page))
+	res, pageTotal, err := h.us.GetTempatPagination(ctx, n, 5, int(page))
 	if err != nil {
-		c.JSON(utils.ConverResponse(err), utils.ResponseHandler(constant.StatusFail, "error terjadi kesalahan", nil))
+		c.JSON(utils.ConverResponse(err), utils.ResponseHandler(constant.StatusFail, err.Error(), nil))
 		return
 	}
 
@@ -187,6 +193,28 @@ func (h *MapsHandler) GetTempatPagination(c *gin.Context) {
 		"page":      page,
 	}
 	c.JSON(http.StatusOK, utils.MetadataFormatResponse(constant.StatusSuccess, "Berhasil mendapatkan data", metadata, res))
+}
+
+func (h *MapsHandler) GetDetailTempat(c *gin.Context) {
+	dataToken, ok := middleware.GetUser(c)
+	if !ok {
+		c.JSON(http.StatusUnauthorized, utils.ResponseHandler(constant.StatusFail, "Unauthorize", nil))
+		return
+	}
+
+	if !crypto.IsUser(dataToken.Role) {
+		c.JSON(http.StatusUnauthorized, utils.ResponseHandler(constant.StatusFail, "error unknown token data", nil))
+		return
+	}
+	ctx := c.Request.Context()
+
+	id := c.Param("id")
+	data, err := h.us.GetDetailTempat(ctx, id)
+	if err != nil {
+		c.JSON(utils.ConverResponse(err), utils.ResponseHandler(constant.StatusFail, err.Error(), nil))
+		return
+	}
+	c.JSON(http.StatusOK, utils.ResponseHandler(constant.StatusSuccess, "Berhasil mendapatkan data", data))
 }
 
 // Proxy
@@ -199,7 +227,7 @@ func (h *MapsHandler) ProxyPhotoHandler(c *gin.Context) {
 
 	photoURL, err := h.gmaps.PhotoReference(photoRef)
 	if err != nil {
-		c.JSON(utils.ConverResponse(err), utils.ResponseHandler(constant.StatusFail, "error terjadi kesalahan", nil))
+		c.JSON(utils.ConverResponse(err), utils.ResponseHandler(constant.StatusFail, err.Error(), nil))
 		return
 	}
 
@@ -263,7 +291,7 @@ func (h *MapsHandler) RouteDestination(c *gin.Context) {
 	}
 	data, err := h.us.RouteDestination(ctx, modelReq, placeId)
 	if err != nil {
-		c.JSON(utils.ConverResponse(err), utils.ResponseHandler(constant.StatusFail, "error terjadi kesalahan", nil))
+		c.JSON(utils.ConverResponse(err), utils.ResponseHandler(constant.StatusFail, err.Error(), nil))
 		return
 	}
 

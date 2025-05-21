@@ -40,11 +40,12 @@ func (c *RouteConfig) SetupMapsRoute() {
 
 	private := c.App.Group("/")
 	private.Use(middleware.NewAuth(c.JWT))
+	private.GET("/tempat-par", c.MapsController.GetTempatPagination)
+	private.GET("/tempat-par/:id", c.MapsController.GetDetailTempat)
+
 	private.GET("/maps", c.MapsController.GmapsSearchbyObject)
 	private.GET("/maps-list", c.MapsController.GmapsSearchbyList)
-	private.GET("/place", c.MapsController.GetTempatPagination)
 	private.GET("/place/:id", c.MapsController.GmapsSearchbyPlaceID)
 	private.POST("/place/:id", c.MapsController.InsertData)
-
 	private.POST("/route-maps/:id", c.MapsController.RouteDestination)
 }

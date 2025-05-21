@@ -47,7 +47,8 @@ type Hour struct {
 	CloseTime string
 }
 
-// Get
+// ==========================================================================================
+// Get All
 type GetAllTempat struct {
 	ID           string             `json:"id"`
 	PlaceId      string             `json:"place_id"`
@@ -67,4 +68,20 @@ type HourTempatGetAll struct {
 	Day       string `json:"day"`
 	OpenTime  string `json:"open_time"`
 	CloseTime string `json:"close_time"`
+}
+
+type GetDetailTempat struct {
+	PlaceID             string `json:"place_id"`
+	Name                string `json:"name"`
+	Lat                 string
+	Lang                string
+	FormattedAddress    string      `json:"formatted_address"`
+	Icon                string      `json:"icon"`
+	NavigasiURL         string      `json:"navigasi_url"`
+	Rating              float64     `json:"rating"`
+	Reviews             []Review    `json:"reviews"`
+	RegularOpeningHours OpeningHour `json:"current_opening_hours"`
+	Photos              []Photo     `json:"photos"`
+	BusinessStatus      string      `json:"business_status"`
+	Types               []string    `json:"types"`
 }

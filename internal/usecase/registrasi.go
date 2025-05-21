@@ -297,7 +297,7 @@ func (s *UsecaseUser) RegisterForAdmin(ctx context.Context, req *model.User) err
 	// Cek validasi password
 	pass, err := utils.ValidatePassword(req.Password)
 	if err != nil {
-		return fmt.Errorf("password tidak valid: %w", err)
+		return errors.New("password is invalid")
 	}
 
 	// Proses hashing password
@@ -381,7 +381,7 @@ func (s *UsecaseUser) OtpVerify(ctx context.Context, req *model.Otp) (*model.Otp
 	}
 
 	if req.OtpNumber != data.OtpNumber {
-		return nil, fmt.Errorf("otp beda")
+		return nil, errors.New("otp salah")
 	}
 
 	err = s.userRepo.SoftDeleteOtpByID(ctx, data.ID)
@@ -406,12 +406,12 @@ func (s *UsecaseUser) OtpVerify(ctx context.Context, req *model.Otp) (*model.Otp
 
 func (s *UsecaseUser) ResetPassword(ctx context.Context, req *model.User) error {
 	if req.Password != req.ConfirmPassword {
-		return fmt.Errorf("password dan confirm password berbeda")
+		return errors.New("konfirmasi password tidak sama dengan password")
 	}
 
 	pass, err := utils.ValidatePassword(req.Password)
 	if err != nil {
-		return fmt.Errorf("password tidak valid: %w", err)
+		return errors.New("password is invalid")
 	}
 
 	hashedPassword, err := utils.HashPassword(pass)
@@ -436,7 +436,7 @@ func (s *UsecaseUser) ResetPassword(ctx context.Context, req *model.User) error 
 
 func (s *UsecaseUser) ActivateAcount(ctx context.Context, email string) error {
 	if email == "" {
-		return fmt.Errorf("err email kosong")
+		return errors.New("email tidak boleh kosong")
 	}
 
 	err := s.userRepo.ActivateAcount(ctx, email)

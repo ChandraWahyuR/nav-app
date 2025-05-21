@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"encoding/json"
 	"fmt"
+	"log"
 	"proyek1/internal/entity"
 	"proyek1/utils"
 
@@ -23,68 +24,148 @@ func NewMapsRepository(db *sql.DB, log *logrus.Logger) *MapsRepo {
 	}
 }
 
-func (r *MapsRepo) GetTotalTempat(ctx context.Context) (int, error) {
+func (r *MapsRepo) GetTotalTempat(ctx context.Context, name string) (int, error) {
 	var total int
+	var err error
 	query := `
 		SELECT COUNT(DISTINCT tempat_pariwisata.place_id)
 		FROM tempat_pariwisata
 		INNER JOIN foto_tempat ON foto_tempat.place_id = tempat_pariwisata.place_id
-		WHERE tempat_pariwisata.deleted_at IS NULL;
+		WHERE tempat_pariwisata.deleted_at IS NULL
 	`
-	err := r.db.QueryRowContext(ctx, query).Scan(&total)
+	if name != "" {
+		query += " AND tempat_pariwisata.name ILIKE '%' || $1 || '%'"
+		err = r.db.QueryRowContext(ctx, query, name).Scan(&total)
+	} else {
+		err = r.db.QueryRowContext(ctx, query).Scan(&total)
+	}
+
 	if err != nil {
 		return 0, err
 	}
 	return total, nil
 }
 
-func (r *MapsRepo) GetTempatPagination(ctx context.Context, limit, offset int) ([]entity.Tempat, error) {
-	var res []entity.Tempat
+func (r *MapsRepo) GetDetailTempat(ctx context.Context, id string) (entity.GetDetailTempat, error) {
+	query := `SELECT 
+				tp.id, tp.place_id, tp.name, tp.address, tp.icon,
 
-	query := `SELECT tempat_pariwisata.id, tempat_pariwisata.place_id, tempat_pariwisata.name, tempat_pariwisata.address, tempat_pariwisata.icon, 
-				json_agg(
-					json_build_object(
-						'photo_reference', foto_tempat.photo_reference,
-						'width_px', CAST(foto_tempat.width_px AS INTEGER),
-						'height_px', CAST(foto_tempat.height_px AS INTEGER)
-					)
-				) AS photos,
-				json_agg(
-					json_build_object(
-						'day', opening_hours.day,
-						'open_time', opening_hours.open_time,
-						'close_time', opening_hours.close_time
-					)
-				) AS time
-				FROM "tempat_pariwisata" 
-				INNER JOIN foto_tempat 
-					ON foto_tempat.place_id = tempat_pariwisata.place_id 
-				LEFT JOIN opening_hours 
-    				ON opening_hours.place_id = tempat_pariwisata.place_id
-				WHERE tempat_pariwisata.deleted_at IS NULL 
-					GROUP BY 
-					tempat_pariwisata.id, tempat_pariwisata.place_id, tempat_pariwisata.name, tempat_pariwisata.address, tempat_pariwisata.icon
-					LIMIT $1 OFFSET $2`
-	rows, err := r.db.QueryContext(ctx, query, limit, offset)
+				-- Photos
+				COALESCE(json_agg(DISTINCT jsonb_build_object(
+					'photo_reference', ft.photo_reference,
+					'width_px', ft.width_px,
+					'height_px', ft.height_px
+				)) FILTER (WHERE ft.id IS NOT NULL), '[]') AS photos,
+
+				-- Opening Hours
+				COALESCE(json_agg(DISTINCT jsonb_build_object(
+					'day', oh.day,
+					'open_time', oh.open_time,
+					'close_time', oh.close_time
+				)) FILTER (WHERE oh.id IS NOT NULL), '[]') AS hours,
+
+				-- Reviews
+				COALESCE(json_agg(DISTINCT jsonb_build_object(
+					'id', rv.id,
+					'author', rv.author,
+					'text', rv.text,
+					'review_created', rv.review_created,
+					'rating', rv.rating,
+					'isfrom_google', rv.isfrom_google
+				)) FILTER (WHERE rv.id IS NOT NULL), '[]') AS reviews
+
+			FROM tempat_pariwisata tp
+			LEFT JOIN foto_tempat ft ON ft.place_id = tp.place_id
+			LEFT JOIN opening_hours oh ON oh.place_id = tp.place_id
+			LEFT JOIN review_tempat rv ON rv.place_id = tp.place_id
+
+			WHERE tp.deleted_at IS NULL AND tp.place_id = $1
+			GROUP BY tp.id, tp.place_id, tp.name, tp.address, tp.icon
+			`
+	/*
+		COALESCE untuk fallback jika tidak ada data.
+		DISTINCT dalam json_agg untuk menghindari duplikasi
+	*/
+	var tempat entity.GetDetailTempat
+	var tempID string
+	var photoJson, timeJson, reviewJson []byte
+	err := r.db.QueryRowContext(ctx, query, id).Scan(
+		&tempID,
+		&tempat.PlaceID,
+		&tempat.Name,
+		&tempat.FormattedAddress,
+		&tempat.Icon,
+		&photoJson,
+		&timeJson,
+		&reviewJson,
+	)
+	if err != nil {
+		log.Println("QueryRow scan error:", err)
+		return entity.GetDetailTempat{}, fmt.Errorf("error scanning: %w", err)
+	}
+
+	if err := json.Unmarshal(photoJson, &tempat.Photos); err != nil {
+		return entity.GetDetailTempat{}, fmt.Errorf("error unmarshalling photos: %w", err)
+	}
+
+	if err := json.Unmarshal(reviewJson, &tempat.Reviews); err != nil {
+		return entity.GetDetailTempat{}, fmt.Errorf("error unmarshalling reviews: %w", err)
+	}
+
+	return tempat, nil
+}
+
+func (r *MapsRepo) GetTempatPagination(ctx context.Context, name string, limit, offset int) ([]entity.Tempat, error) {
+	var res []entity.Tempat
+	var rows *sql.Rows
+	var err error
+	query := `
+	SELECT 
+		tempat_pariwisata.id, tempat_pariwisata.place_id, tempat_pariwisata.name, tempat_pariwisata.address, tempat_pariwisata.icon, 
+		COALESCE(json_agg(DISTINCT jsonb_build_object(
+			'photo_reference', foto_tempat.photo_reference,
+			'width_px', foto_tempat.width_px,
+			'height_px', foto_tempat.height_px
+		)) FILTER (WHERE foto_tempat.id IS NOT NULL), '[]') AS photos,
+		COALESCE(json_agg(DISTINCT jsonb_build_object(
+			'day', opening_hours.day,
+			'open_time', opening_hours.open_time,
+			'close_time', opening_hours.close_time
+		)) FILTER (WHERE opening_hours.id IS NOT NULL), '[]') AS time
+	FROM tempat_pariwisata
+	LEFT JOIN foto_tempat ON foto_tempat.place_id = tempat_pariwisata.place_id
+	LEFT JOIN opening_hours ON opening_hours.place_id = tempat_pariwisata.place_id
+	WHERE tempat_pariwisata.deleted_at IS NULL
+`
+	if name != "" { // fitur search by name
+		query += " AND tempat_pariwisata.name ILIKE '%' || $1 || '%' "
+		query += ` GROUP BY tempat_pariwisata.id, tempat_pariwisata.place_id, tempat_pariwisata.name, tempat_pariwisata.address, tempat_pariwisata.icon
+			   LIMIT $2 OFFSET $3`
+		rows, err = r.db.QueryContext(ctx, query, name, limit, offset)
+	} else { // fitur get all biasa
+		query += ` GROUP BY tempat_pariwisata.id, tempat_pariwisata.place_id, tempat_pariwisata.name, tempat_pariwisata.address, tempat_pariwisata.icon
+					   LIMIT $1 OFFSET $2`
+		rows, err = r.db.QueryContext(ctx, query, limit, offset)
+	}
+
 	if err != nil {
 		return []entity.Tempat{}, err
+	}
+	if err != nil {
+		return nil, err
 	}
 	defer rows.Close()
 
 	for rows.Next() {
 		var photoJson, timeJson []byte
-
 		var tempat entity.Tempat
-		err := rows.Scan(&tempat.ID, &tempat.PlaceId, &tempat.Name, &tempat.Address, &tempat.Icon, &photoJson, &timeJson)
-		if err != nil {
-			return nil, fmt.Errorf("error scanning product row: %w", err)
-		}
 
-		//
+		if err := rows.Scan(&tempat.ID, &tempat.PlaceId, &tempat.Name, &tempat.Address, &tempat.Icon, &photoJson, &timeJson); err != nil {
+			return nil, fmt.Errorf("error scanning row: %w", err)
+		}
 		if err := json.Unmarshal(photoJson, &tempat.Photos); err != nil {
 			return nil, fmt.Errorf("error unmarshalling photo_json: %w", err)
 		}
-
 		if err := json.Unmarshal(timeJson, &tempat.OpeningHours); err != nil {
 			return nil, fmt.Errorf("error unmarshalling time_json: %w", err)
 		}

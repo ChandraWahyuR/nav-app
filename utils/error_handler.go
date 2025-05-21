@@ -10,9 +10,18 @@ import (
 
 func ConverResponse(err error) int {
 	log.Printf("Received error: %v", err)
+
 	switch err {
 	case ErrGetData:
 		return http.StatusBadRequest
+	case ErrEmailTaken, ErrUsernameTaken, ErrUsernameOrEmailTaken, ErrPlaceIDUniqueTaken:
+		return http.StatusConflict // 409
+	case ErrUsernameEmpty, ErrEmailEmpty, ErrPasswordEmpty, ErrConfirmPassword, ErrFormatEmail, ErrFormatPassword:
+		return http.StatusBadRequest // 400
+	case ErrOtpExpire, ErrOtpNotMatch:
+		return http.StatusUnauthorized // 401
+	case ErrIDNotFound:
+		return http.StatusNotFound // 404
 	default:
 		return http.StatusInternalServerError
 	}

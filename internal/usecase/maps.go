@@ -16,8 +16,9 @@ import (
 
 type RepositoryMapsInterface interface {
 	InsertTempat(ctx context.Context, data *entity.Tempat) error
-	GetTotalTempat(ctx context.Context) (int, error)
-	GetTempatPagination(ctx context.Context, totalPage, limit int) ([]entity.Tempat, error)
+	GetTotalTempat(ctx context.Context, name string) (int, error)
+	GetTempatPagination(ctx context.Context, name string, limit, offset int) ([]entity.Tempat, error)
+	GetDetailTempat(ctx context.Context, id string) (entity.GetDetailTempat, error)
 }
 
 type UsecaseMaps struct {
@@ -36,7 +37,7 @@ func NewMapsUsercase(repo RepositoryMapsInterface, log *logrus.Logger, gm gmaps.
 
 func (s *UsecaseMaps) InsertTempat(ctx context.Context, placeId string) error {
 	if placeId == "" {
-		return errors.New("Id tidak ditemukan")
+		return errors.New("Id tidak ditemukan atau kosong")
 	}
 	dataGmaps, err := s.gm.GmapsSearchByPlaceID(placeId)
 	if err != nil {
@@ -50,14 +51,14 @@ func (s *UsecaseMaps) InsertTempat(ctx context.Context, placeId string) error {
 
 	return nil
 }
-func (s *UsecaseMaps) GetTempatPagination(ctx context.Context, limit, page int) ([]model.GetAllTempat, int, error) {
-	total, err := s.repo.GetTotalTempat(ctx)
+func (s *UsecaseMaps) GetTempatPagination(ctx context.Context, name string, limit, page int) ([]model.GetAllTempat, int, error) {
+	total, err := s.repo.GetTotalTempat(ctx, name)
 	if err != nil {
 		return []model.GetAllTempat{}, 0, err
 	}
 	totalPage := utils.TotalPageForPagination(total, limit)
 	offset := (page - 1) * limit
-	dataTempat, err := s.repo.GetTempatPagination(ctx, limit, offset)
+	dataTempat, err := s.repo.GetTempatPagination(ctx, name, limit, offset)
 	if err != nil {
 		return []model.GetAllTempat{}, 0, err
 	}
@@ -104,6 +105,72 @@ func (s *UsecaseMaps) GetTempatPagination(ctx context.Context, limit, page int) 
 	}
 
 	return res, totalPage, nil
+}
+
+func (s *UsecaseMaps) GetDetailTempat(ctx context.Context, id string) (model.GetDetailTempat, error) {
+	if id == "" {
+		return model.GetDetailTempat{}, errors.New("Id tidak ditemukan atau kosong")
+	}
+
+	resData, err := s.repo.GetDetailTempat(ctx, id)
+	if err != nil {
+		return model.GetDetailTempat{}, err
+	}
+	var totalRatingSum float64 = 0.0
+	var parsedReviews []model.Review
+	for _, r := range resData.Reviews {
+		totalRatingSum += float64(r.Rating)
+		parsedReviews = append(parsedReviews, model.Review{
+			AuthorName: r.Author,
+			Text:       r.Text,
+			Rating:     float64(r.Rating),
+		})
+	}
+
+	var averageRating float64
+	if len(resData.Reviews) > 0 {
+		averageRating = totalRatingSum / float64(len(resData.Reviews))
+	} else {
+		averageRating = 0.0
+	}
+	var periods []model.Period
+	for _, p := range resData.RegularOpeningHours.Periods {
+		periods = append(periods, model.Period{
+			Open: model.DayTime{
+				Day:  p.Open.Day,
+				Time: utils.FormatJam(p.Open.Time),
+			},
+			Close: model.DayTime{
+				Day:  p.Close.Day,
+				Time: utils.FormatJam(p.Close.Time),
+			},
+		})
+	}
+	var photos []model.Photo
+	for _, s := range resData.Photos {
+		photos = append(photos, model.Photo{
+			WidthPx:        s.WidthPx,
+			HeightPx:       s.HeightPx,
+			PhotoReference: s.PhotoRefrences,
+		})
+	}
+	results := model.GetDetailTempat{
+		PlaceID:          resData.PlaceID,
+		Name:             resData.Name,
+		FormattedAddress: resData.FormattedAddress,
+		Lat:              fmt.Sprintf("%f", resData.Geometry.Location.Lat),
+		Icon:             resData.Icon,
+		Rating:           averageRating,
+		Reviews:          parsedReviews,
+		NavigasiURL: fmt.Sprintf("https://www.google.com/maps/search/?api=1&query=%f,%f&query_place_id=%s",
+			resData.Geometry.Location.Lat,
+			resData.Geometry.Location.Lng,
+			id),
+		Photos: photos,
+		Types:  resData.Types,
+	}
+
+	return results, nil
 }
 
 func (s *UsecaseMaps) RouteDestination(ctx context.Context, req model.RequestRouteMaps, placeID string) (*model.ResponseRouteMaps, error) {

@@ -8,6 +8,6 @@ const (
 	VercelRoute            = "https://html-411k7ckwk-chands-projects-5f68fc9c.vercel.app/static/index.html"
 
 	// Message Response
-	StatusSuccess = "Success"
-	StatusFail    = "Fail"
+	StatusSuccess = "success"
+	StatusFail    = "fail"
 )

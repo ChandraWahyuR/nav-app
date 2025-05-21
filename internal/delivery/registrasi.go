@@ -76,7 +76,7 @@ func (h *UserHandler) Register(c *gin.Context) {
 	}
 	err := h.uc.Register(ctx, &modelData)
 	if err != nil {
-		c.JSON(utils.ConverResponse(err), utils.ResponseHandler(constant.StatusFail, "error terjadi kesalahan", nil))
+		c.JSON(utils.ConverResponse(err), utils.ResponseHandler(constant.StatusFail, err.Error(), nil))
 		return
 	}
 
@@ -93,7 +93,7 @@ func (h *UserHandler) Login(c *gin.Context) {
 	ctx := c.Request.Context()
 	result, err := h.uc.Login(ctx, &data)
 	if err != nil {
-		c.JSON(utils.ConverResponse(err), utils.ResponseHandler(constant.StatusFail, "error terjadi kesalahan", nil))
+		c.JSON(utils.ConverResponse(err), utils.ResponseHandler(constant.StatusFail, err.Error(), nil))
 		return
 	}
 	res := map[string]string{
@@ -117,7 +117,7 @@ func (h *UserHandler) Profile(c *gin.Context) {
 	ctx := c.Request.Context()
 	userData, err := h.uc.Profile(ctx, dataToken.ID)
 	if err != nil {
-		c.JSON(utils.ConverResponse(err), utils.ResponseHandler(constant.StatusFail, "error terjadi kesalahan", nil))
+		c.JSON(utils.ConverResponse(err), utils.ResponseHandler(constant.StatusFail, err.Error(), nil))
 		return
 	}
 
@@ -162,7 +162,7 @@ func (h *UserHandler) EditProfile(c *gin.Context) {
 	ctx := c.Request.Context()
 	err := h.uc.EditProfile(ctx, dataUser, dataToken.ID)
 	if err != nil {
-		c.JSON(utils.ConverResponse(err), utils.ResponseHandler(constant.StatusFail, "error terjadi kesalahan", nil))
+		c.JSON(utils.ConverResponse(err), utils.ResponseHandler(constant.StatusFail, err.Error(), nil))
 		return
 	}
 
@@ -186,7 +186,7 @@ func (h *UserHandler) RegisterForAdmin(c *gin.Context) {
 
 	err := h.uc.RegisterForAdmin(ctx, &modelData)
 	if err != nil {
-		c.JSON(utils.ConverResponse(err), utils.ResponseHandler(constant.StatusFail, "error terjadi kesalahan", nil))
+		c.JSON(utils.ConverResponse(err), utils.ResponseHandler(constant.StatusFail, err.Error(), nil))
 		return
 	}
 
@@ -208,7 +208,7 @@ func (h *UserHandler) ForgotPassword(c *gin.Context) {
 
 	err := h.uc.ForgotPassword(ctx, &modelData)
 	if err != nil {
-		c.JSON(utils.ConverResponse(err), utils.ResponseHandler(constant.StatusFail, "error terjadi kesalahan", nil))
+		c.JSON(utils.ConverResponse(err), utils.ResponseHandler(constant.StatusFail, err.Error(), nil))
 		return
 	}
 
@@ -232,7 +232,7 @@ func (h *UserHandler) OtpVerify(c *gin.Context) {
 
 	result, err := h.uc.OtpVerify(ctx, &modelData)
 	if err != nil {
-		c.JSON(utils.ConverResponse(err), utils.ResponseHandler(constant.StatusFail, "error terjadi kesalahan", nil))
+		c.JSON(utils.ConverResponse(err), utils.ResponseHandler(constant.StatusFail, err.Error(), nil))
 		return
 	}
 
@@ -269,7 +269,7 @@ func (h *UserHandler) ResetPassword(c *gin.Context) {
 
 	err := h.uc.ResetPassword(ctx, &modelData)
 	if err != nil {
-		c.JSON(utils.ConverResponse(err), utils.ResponseHandler(constant.StatusFail, "error terjadi kesalahan", nil))
+		c.JSON(utils.ConverResponse(err), utils.ResponseHandler(constant.StatusFail, err.Error(), nil))
 		return
 	}
 
@@ -297,7 +297,7 @@ func (h *UserHandler) ActivateAcount(c *gin.Context) {
 	ctx := c.Request.Context()
 	err = h.uc.ActivateAcount(ctx, userData.Email)
 	if err != nil {
-		c.JSON(utils.ConverResponse(err), utils.ResponseHandler(constant.StatusFail, "error terjadi kesalahan", nil))
+		c.JSON(utils.ConverResponse(err), utils.ResponseHandler(constant.StatusFail, err.Error(), nil))
 		return
 	}
 

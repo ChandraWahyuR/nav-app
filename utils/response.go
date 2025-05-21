@@ -1,16 +1,16 @@
 package utils
 
 type Response struct {
-	Status  string
-	Message string
-	Data    interface{}
+	Status  string      `json:"status"`
+	Message string      `json:"message"`
+	Data    interface{} `json:"data"`
 }
 
 type MetadataResponse struct {
-	Status   string
-	Message  string
-	Metadata interface{}
-	Data     interface{}
+	Status   string      `json:"status"`
+	Message  string      `json:"message"`
+	Metadata interface{} `json:"metadata"`
+	Data     interface{} `json:"data"`
 }
 
 func ResponseHandler(status, message string, data interface{}) Response {
