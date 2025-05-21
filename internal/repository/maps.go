@@ -48,7 +48,7 @@ func (r *MapsRepo) GetTotalTempat(ctx context.Context, name string) (int, error)
 
 func (r *MapsRepo) GetDetailTempat(ctx context.Context, id string) (entity.GetDetailTempat, error) {
 	query := `SELECT 
-				tp.id, tp.place_id, tp.name, tp.address, tp.icon,
+				tp.id, tp.place_id, tp.name, tp.address, tp.icon, tp.latitude, tp.longtitude,
 
 				-- Photos
 				COALESCE(json_agg(DISTINCT jsonb_build_object(
@@ -95,6 +95,8 @@ func (r *MapsRepo) GetDetailTempat(ctx context.Context, id string) (entity.GetDe
 		&tempat.Name,
 		&tempat.FormattedAddress,
 		&tempat.Icon,
+		&tempat.Lat,
+		&tempat.Lng,
 		&photoJson,
 		&timeJson,
 		&reviewJson,
@@ -102,6 +104,11 @@ func (r *MapsRepo) GetDetailTempat(ctx context.Context, id string) (entity.GetDe
 	if err != nil {
 		log.Println("QueryRow scan error:", err)
 		return entity.GetDetailTempat{}, fmt.Errorf("error scanning: %w", err)
+	}
+
+	if err := json.Unmarshal(timeJson, &tempat.OpeningHours); err != nil {
+		log.Printf("Opening hours from DB: %+v\n", tempat.OpeningHours)
+		return entity.GetDetailTempat{}, fmt.Errorf("error unmarshalling opening hours: %w", err)
 	}
 
 	if err := json.Unmarshal(photoJson, &tempat.Photos); err != nil {

@@ -73,7 +73,7 @@ func (s *UsecaseMaps) GetTempatPagination(ctx context.Context, name string, limi
 		}
 
 		var hours []model.HourTempatGetAll
-		for _, h := range v.OpeningHours[:8] {
+		for _, h := range v.OpeningHours {
 			hours = append(hours, model.HourTempatGetAll{
 				Day:       h.Day,
 				OpenTime:  h.OpenTime,
@@ -121,9 +121,10 @@ func (s *UsecaseMaps) GetDetailTempat(ctx context.Context, id string) (model.Get
 	for _, r := range resData.Reviews {
 		totalRatingSum += float64(r.Rating)
 		parsedReviews = append(parsedReviews, model.Review{
-			AuthorName: r.Author,
-			Text:       r.Text,
-			Rating:     float64(r.Rating),
+			AuthorName:                     r.Author,
+			Text:                           r.Text,
+			Rating:                         float64(r.Rating),
+			RelativePublishTimeDescription: r.ReviewCreated,
 		})
 	}
 
@@ -133,17 +134,12 @@ func (s *UsecaseMaps) GetDetailTempat(ctx context.Context, id string) (model.Get
 	} else {
 		averageRating = 0.0
 	}
-	var periods []model.Period
-	for _, p := range resData.RegularOpeningHours.Periods {
-		periods = append(periods, model.Period{
-			Open: model.DayTime{
-				Day:  p.Open.Day,
-				Time: utils.FormatJam(p.Open.Time),
-			},
-			Close: model.DayTime{
-				Day:  p.Close.Day,
-				Time: utils.FormatJam(p.Close.Time),
-			},
+	var periods []model.HourTempatGetAll
+	for _, p := range resData.OpeningHours {
+		periods = append(periods, model.HourTempatGetAll{
+			Day:       p.Day,
+			OpenTime:  p.OpenTime,
+			CloseTime: p.CloseTime,
 		})
 	}
 	var photos []model.Photo
@@ -158,13 +154,17 @@ func (s *UsecaseMaps) GetDetailTempat(ctx context.Context, id string) (model.Get
 		PlaceID:          resData.PlaceID,
 		Name:             resData.Name,
 		FormattedAddress: resData.FormattedAddress,
-		Lat:              fmt.Sprintf("%f", resData.Geometry.Location.Lat),
+		Lat:              fmt.Sprintf("%f", resData.Lat),
+		Lang:             fmt.Sprintf("%f", resData.Lng),
 		Icon:             resData.Icon,
 		Rating:           averageRating,
 		Reviews:          parsedReviews,
+		RegularOpeningHours: model.DetailHour{
+			Periods: periods,
+		},
 		NavigasiURL: fmt.Sprintf("https://www.google.com/maps/search/?api=1&query=%f,%f&query_place_id=%s",
-			resData.Geometry.Location.Lat,
-			resData.Geometry.Location.Lng,
+			resData.Lat,
+			resData.Lng,
 			id),
 		Photos: photos,
 		Types:  resData.Types,
