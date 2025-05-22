@@ -35,9 +35,14 @@ type GetDetailTempat struct {
 	RegularOpeningHours DetailHour `json:"current_opening_hours"`
 	Photos              []Photo    `json:"photos"`
 	BusinessStatus      string     `json:"business_status"`
-	Types               []string   `json:"types"`
+	Types               []Type     `json:"types"`
 }
 
 type DetailHour struct {
 	Periods []HourTempatGetAll `json:"periods"`
+}
+
+type Type struct {
+	PlaceID      string `json:"place_id"`
+	CategoryCode string `json:"category_code"`
 }

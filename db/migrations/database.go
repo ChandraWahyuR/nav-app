@@ -16,6 +16,8 @@ func CreateTables(db *sql.DB) error {
 		"./db/migrations/003.1_ReviewTempat.sql",
 		"./db/migrations/003.2_FotoTempat.sql",
 		"./db/migrations/003.3_OpeningHours.sql",
+		"./db/migrations/003.4_CategoryMaster.sql",
+		"./db/migrations/003.5_CategoryPariwisata.sql",
 	}
 
 	for _, v := range files {

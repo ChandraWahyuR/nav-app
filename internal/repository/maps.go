@@ -48,7 +48,7 @@ func (r *MapsRepo) GetTotalTempat(ctx context.Context, name string) (int, error)
 
 func (r *MapsRepo) GetDetailTempat(ctx context.Context, id string) (entity.GetDetailTempat, error) {
 	query := `SELECT 
-				tp.id, tp.place_id, tp.name, tp.address, tp.icon, tp.latitude, tp.longtitude,
+				tp.id, tp.place_id, tp.name, tp.address, tp.icon, tp.latitude, tp.longtitude, tp.business_status,
 
 				-- Photos
 				COALESCE(json_agg(DISTINCT jsonb_build_object(
@@ -72,15 +72,27 @@ func (r *MapsRepo) GetDetailTempat(ctx context.Context, id string) (entity.GetDe
 					'review_created', rv.review_created,
 					'rating', rv.rating,
 					'isfrom_google', rv.isfrom_google
-				)) FILTER (WHERE rv.id IS NOT NULL), '[]') AS reviews
-
+				)) FILTER (WHERE rv.id IS NOT NULL), '[]') AS reviews,
+				
+				-- Master Types
+				COALESCE(json_agg(DISTINCT jsonb_build_object(
+					'code', mc.code
+				)) FILTER (WHERE mc.code IS NOT NULL), '[]') AS master_types,
+				
+				-- Types
+				COALESCE(json_agg(DISTINCT jsonb_build_object(
+					'category_code', ty.category_code,
+					'place_id', ty.place_id
+				)) FILTER (WHERE ty.category_code IS NOT NULL), '[]') AS types
 			FROM tempat_pariwisata tp
 			LEFT JOIN foto_tempat ft ON ft.place_id = tp.place_id
 			LEFT JOIN opening_hours oh ON oh.place_id = tp.place_id
 			LEFT JOIN review_tempat rv ON rv.place_id = tp.place_id
+			LEFT JOIN category_pariwisata ty ON ty.place_id = tp.place_id
+			LEFT JOIN master_category mc ON mc.code = ty.category_code
 
 			WHERE tp.deleted_at IS NULL AND tp.place_id = $1
-			GROUP BY tp.id, tp.place_id, tp.name, tp.address, tp.icon
+			GROUP BY tp.id, tp.place_id, tp.name, tp.address, tp.icon, tp.latitude, tp.longtitude
 			`
 	/*
 		COALESCE untuk fallback jika tidak ada data.
@@ -88,7 +100,7 @@ func (r *MapsRepo) GetDetailTempat(ctx context.Context, id string) (entity.GetDe
 	*/
 	var tempat entity.GetDetailTempat
 	var tempID string
-	var photoJson, timeJson, reviewJson []byte
+	var photoJson, timeJson, reviewJson, typeJson, master_types []byte
 	err := r.db.QueryRowContext(ctx, query, id).Scan(
 		&tempID,
 		&tempat.PlaceID,
@@ -97,10 +109,16 @@ func (r *MapsRepo) GetDetailTempat(ctx context.Context, id string) (entity.GetDe
 		&tempat.Icon,
 		&tempat.Lat,
 		&tempat.Lng,
+		&tempat.BusinessStatus,
 		&photoJson,
 		&timeJson,
 		&reviewJson,
+		&master_types,
+		&typeJson,
 	)
+
+	log.Println("Raw Type JSON:", string(typeJson))
+
 	if err != nil {
 		log.Println("QueryRow scan error:", err)
 		return entity.GetDetailTempat{}, fmt.Errorf("error scanning: %w", err)
@@ -117,6 +135,14 @@ func (r *MapsRepo) GetDetailTempat(ctx context.Context, id string) (entity.GetDe
 
 	if err := json.Unmarshal(reviewJson, &tempat.Reviews); err != nil {
 		return entity.GetDetailTempat{}, fmt.Errorf("error unmarshalling reviews: %w", err)
+	}
+
+	if err := json.Unmarshal(typeJson, &tempat.Types); err != nil {
+		return entity.GetDetailTempat{}, fmt.Errorf("error unmarshalling types: %w", err)
+	}
+
+	if err := json.Unmarshal(master_types, &tempat.MasterTypes); err != nil {
+		return entity.GetDetailTempat{}, fmt.Errorf("error unmarshalling master types: %w", err)
 	}
 
 	return tempat, nil
@@ -214,6 +240,12 @@ func (r *MapsRepo) InsertTempat(ctx context.Context, data *entity.Tempat) error 
 		}
 	}
 
+	if len(data.Types) > 0 {
+		if err := r.InsertType(ctx, tx, data.Types); err != nil {
+			return utils.ParsePQError(err)
+		}
+	}
+
 	return tx.Commit()
 }
 
@@ -252,5 +284,30 @@ func (r *MapsRepo) InsertHours(ctx context.Context, tx *sql.Tx, data []entity.Ho
 		}
 	}
 
+	return nil
+}
+
+func (r *MapsRepo) InsertType(ctx context.Context, tx *sql.Tx, data []entity.Type) error {
+	for _, cat := range data {
+		// 1. Insert ke master_category jika belum ada
+		q := `
+		INSERT INTO master_category (code)
+		VALUES ($1)
+		ON CONFLICT (code) DO NOTHING
+		`
+		if _, err := tx.ExecContext(ctx, q, cat.CategoryCode); err != nil {
+			return utils.ParsePQError(err)
+		}
+
+		// 2. Insert relasi kategori ke tempat (jika belum ada)
+		qt := `
+		INSERT INTO category_pariwisata (place_id, category_code)
+		VALUES ($1, $2)
+		ON CONFLICT (place_id, category_code) DO NOTHING
+		`
+		if _, err := tx.ExecContext(ctx, qt, cat.PlaceID, cat.CategoryCode); err != nil {
+			return utils.ParsePQError(err)
+		}
+	}
 	return nil
 }

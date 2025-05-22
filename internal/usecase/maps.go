@@ -150,6 +150,13 @@ func (s *UsecaseMaps) GetDetailTempat(ctx context.Context, id string) (model.Get
 			PhotoReference: s.PhotoRefrences,
 		})
 	}
+	var types []model.Type
+	for _, s := range resData.Types {
+		types = append(types, model.Type{
+			CategoryCode: s.CategoryCode,
+			PlaceID:      s.PlaceID,
+		})
+	}
 	results := model.GetDetailTempat{
 		PlaceID:          resData.PlaceID,
 		Name:             resData.Name,
@@ -166,8 +173,9 @@ func (s *UsecaseMaps) GetDetailTempat(ctx context.Context, id string) (model.Get
 			resData.Lat,
 			resData.Lng,
 			id),
-		Photos: photos,
-		Types:  resData.Types,
+		Photos:         photos,
+		Types:          types,
+		BusinessStatus: resData.BusinessStatus,
 	}
 
 	return results, nil
@@ -258,6 +266,15 @@ func ConverMapsToModelPlace(req model.MapsGetByPlaceId) *entity.Tempat {
 		})
 	}
 
+	var types []entity.Type
+	for _, t := range req.Types {
+		types = append(types, entity.Type{
+			CategoryCode: t,
+			PlaceID:      req.PlaceID,
+		})
+	}
+
+	conv.Types = types
 	conv.Reviews = rev
 	conv.Photos = photos
 	conv.OpeningHours = hours
